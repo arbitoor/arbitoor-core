@@ -4,7 +4,11 @@
   "description": "",
   "main": "index.js",
   "scripts": {
-    "test": "ava"
+    "build": "RUSTFLAGS='-C link-arg=-s' cargo build --target wasm32-unknown-unknown --features \"test\" && cp ./target/wasm32-unknown-unknown/debug/*.wasm ./compiled_contracts/",
+    "build:release": "RUSTFLAGS='-C link-arg=-s' cargo build --target wasm32-unknown-unknown --release && cp ./target/wasm32-unknown-unknown/release/*.wasm ./compiled_contracts/",
+    "test": "npm run build && ava",
+    "test:release": "npm run build:release && ava",
+    "test:skip-build": "ava"
   },
   "author": "",
   "license": "ISC",
