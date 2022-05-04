@@ -1,0 +1,16 @@
+{
+  "name": "@comet-ag/comet",
+  "version": "1.0.0",
+  "description": "",
+  "main": "index.js",
+  "scripts": {
+    "test": "ava"
+  },
+  "author": "",
+  "license": "ISC",
+  "devDependencies": {
+    "ava": "^4.0.1",
+    "near-workspaces": "2.0.0",
+    "ts-node": "^10.7.0"
+  }
+}
