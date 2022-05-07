@@ -96,7 +96,6 @@ impl FungibleTokenReceiver for CometContract {
 
                     let dex_id = route.dex.to_string();
                     if dex_id == "ref" || dex_id == "jumbo" {
-                        // 1. swap() based method: 139 TGas
                         ext_fungible_token::ft_transfer_call(
                             route.dex.clone(),
                             amount,
@@ -108,7 +107,7 @@ impl FungibleTokenReceiver for CometContract {
                         )
                         .then(ext_ref::swap(
                             route.actions,
-                            None,
+                            referral_id.clone(),
                             route.dex.clone(),
                             1,
                             MIN_GAS_FOR_SWAP, // 20
