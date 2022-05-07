@@ -18,13 +18,7 @@ pub trait FungibleToken {
 
 #[ext_contract(ext_self)]
 pub trait ExtSelf {
-    fn callback_consumed_tokens(
-        output_token: AccountId,
-        sender_id: AccountId,
-        #[callback] amount_out: U128,
-    );
-
-    fn callback_withdraw_tokens(
+    fn callback_swap_result(
         output_token: AccountId,
         sender_id: AccountId,
         dex_id: AccountId,

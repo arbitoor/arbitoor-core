@@ -14,8 +14,7 @@ test.beforeEach(async t => {
   const root = worker.rootAccount
   const comet = await root.createAndDeploy(
     root.getSubAccount('comet').accountId,
-    'compiled_contracts/comet.wasm',
-    { initialBalance: NEAR.parse('3 N').toJSON() }
+    'compiled_contracts/comet.wasm'
   )
   const alice = await root.createSubAccount('alice', { initialBalance: NEAR.parse('10000 N').toJSON() })
 

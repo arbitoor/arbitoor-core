@@ -61,4 +61,10 @@ export class Token {
       attachedDeposit: NEAR.parse('0.00235').toString()
     })
   }
+
+  async balance(accountId: string): Promise<string> {
+    return this.address.view('ft_balance_of', {
+      account_id: accountId,
+    })
+  }
 }
