@@ -10,7 +10,7 @@
     "test:release": "npm run build:release && ava",
     "test:skip-build": "ava",
     "lint": "eslint .  --ext .ts",
-    "lint-fix": "eslint --fix .  --ext .ts"
+    "lint:fix": "eslint --fix .  --ext .ts"
   },
   "eslintConfig": {
 		"extends": "plugin:ava/recommended"

@@ -1,15 +1,15 @@
-import { NearAccount } from 'near-workspaces'
+import { NEAR, NearAccount } from 'near-workspaces'
 import { Transaction } from 'near-workspaces/dist/transaction'
 
 /**
  * Convenience functions for NEP-141 fungible tokens
  */
 export class Token {
-  readonly token: NearAccount
+  readonly address: NearAccount
   readonly owner: NearAccount
 
-  private constructor (token: NearAccount, owner: NearAccount) {
-    this.token = token
+  private constructor (address: NearAccount, owner: NearAccount) {
+    this.address = address
     this.owner = owner
   }
 
@@ -42,9 +42,23 @@ export class Token {
    * @returns
    */
   mint (accountId: NearAccount, amount: bigint): Transaction {
-    return this.owner.batch(this.token).functionCall('mint', {
+    return this.owner.batch(this.address).functionCall('mint', {
       account_id: accountId,
       amount: amount.toString()
+    })
+  }
+
+  /**
+   * Returns a TX to add storage balance for an account
+   * Further reading- https://nomicon.io/Standards/StorageManagement
+   * @param accountId
+   * @returns
+   */
+  addStorage (accountId: NearAccount): Transaction {
+    return this.owner.batch(this.address).functionCall('storage_deposit', {
+      account_id: accountId
+    }, {
+      attachedDeposit: NEAR.parse('0.00235').toString()
     })
   }
 }
