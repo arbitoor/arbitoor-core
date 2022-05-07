@@ -1,6 +1,7 @@
 mod structs;
 mod xss;
 
+use near_sdk::serde_json::json;
 use structs::*;
 use xss::*;
 
@@ -26,11 +27,10 @@ pub struct CometContract {}
 
 #[near_bindgen]
 impl CometContract {
-
     #[private]
     pub fn callback_swap_result(
         self,
-        sender_id: AccountId,
+        destination: AccountId,
         dex_id: AccountId,
         output_token: AccountId,
         input_token: AccountId,
@@ -59,7 +59,7 @@ impl CometContract {
             MIN_GAS_FOR_WITHDRAW,
         )
         .then(ext_fungible_token::ft_transfer(
-            sender_id,
+            destination,
             amount,
             None,
             token,
@@ -82,54 +82,64 @@ impl FungibleTokenReceiver for CometContract {
             env::prepaid_gas().0,
             env::used_gas().0
         );
-        let message = serde_json::from_str::<TokenReceiverMessage>(&msg).expect("incorrect format");
+        let TokenReceiverMessage::Execute {
+            referral_id,
+            routes,
+        } = serde_json::from_str::<TokenReceiverMessage>(&msg).expect("incorrect format");
 
-        match message {
-            TokenReceiverMessage::Execute {
-                referral_id,
-                routes,
-            } => {
-                // map the routes into a promise structure, then send them together
-                for route in routes {
-                    let token_in = route.actions.first().unwrap().token_in.clone();
-                    let token_out = route.actions.last().unwrap().token_out.clone();
+        let mut promise_idx: Option<u64> = None;
+        // map the routes into a promise structure, then send them together
 
-                    let dex_id = route.dex.to_string();
-                    if dex_id == "ref" || dex_id == "jumbo" {
-                        ext_fungible_token::ft_transfer_call(
-                            route.dex.clone(),
-                            amount,
-                            None,
-                            String::default(),
-                            token_in.clone(),
-                            1,
-                            MIN_GAS_FOR_FT_TRANSFER_CALL, // 60
-                        )
-                        .then(ext_ref::swap(
-                            route.actions,
-                            referral_id.clone(),
-                            route.dex.clone(),
-                            1,
-                            MIN_GAS_FOR_SWAP, // 20
-                        ))
-                        .then(ext_self::callback_swap_result(
-                            sender_id.clone(),
-                            route.dex.clone(),
-                            token_out,
-                            token_in,
-                            amount,
-                            env::current_account_id(),
-                            1,
-                            MIN_GAS_FOR_WITHDRAW_CALLBACK, // 155
-                        ));
-                    } else {
-                        env::panic_str("Not a whitelisted DEX");
-                    }
-                }
-                // return count of unused tokens
-                // https://docs.near.org/docs/tutorials/contracts/xcc-receipts#fungible-token-standard
-                PromiseOrValue::Value(U128::from(0))
+        for route in routes {
+            let token_in = route.actions.first().unwrap().token_in.clone();
+            let token_out = route.actions.last().unwrap().token_out.clone();
+
+            let dex_id = route.dex.to_string();
+            if dex_id == "ref" || dex_id == "jumbo" {
+                let idx0 = env::promise_create(
+                    token_in.clone(),
+                    "ft_transfer_call",
+                    json!({
+                        "receiver_id": route.dex.clone(),
+                        "amount": amount,
+                        "msg": String::default(),
+                    }).to_string().as_bytes(),
+                    1,
+                    MIN_GAS_FOR_FT_TRANSFER_CALL, // 60
+                );
+                let idx1 = env::promise_then(
+                    idx0,
+                    route.dex.clone(),
+                    "swap",
+                    json!({
+                        "actions": route.actions,
+                        "referral_id": referral_id,
+                    }).to_string().as_bytes(),
+                    1,
+                    MIN_GAS_FOR_SWAP, // 60
+                );
+                let idx2 = env::promise_then(
+                    idx1,
+                    env::current_account_id(),
+                    "callback_swap_result",
+                    json!({
+                        "destination": sender_id.clone(),
+                        "dex_id": route.dex.clone(),
+                        "output_token": token_out,
+                        "input_token": token_in,
+                        "input_amount": amount,
+                    }).to_string().as_bytes(),
+                    1,
+                    MIN_GAS_FOR_WITHDRAW_CALLBACK, // 60
+                );
+                log!("promise indices {}, {}", idx0, idx1);
+            } else {
+                env::panic_str("Not a whitelisted DEX");
             }
         }
+
+        env::promise_return(2);
+
+        PromiseOrValue::Value(U128::from(0)) // return unused tokens
     }
 }

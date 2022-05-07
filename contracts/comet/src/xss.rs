@@ -26,7 +26,7 @@ pub trait FungibleToken {
 pub trait ExtSelf {
     fn callback_swap_result(
         self,
-        sender_id: AccountId,
+        destination: AccountId,
         dex_id: AccountId,
         output_token: AccountId,
         input_token: AccountId,
