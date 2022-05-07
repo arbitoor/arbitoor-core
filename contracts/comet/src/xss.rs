@@ -4,7 +4,13 @@ use crate::*;
 pub trait FungibleToken {
     fn ft_transfer(receiver_id: AccountId, amount: U128, memo: Option<String>);
 
-    fn ft_transfer_call(&mut self, receiver_id: AccountId, amount: U128, memo: Option<String>, msg: String) -> U128;
+    fn ft_transfer_call(
+        &mut self,
+        receiver_id: AccountId,
+        amount: U128,
+        memo: Option<String>,
+        msg: String,
+    ) -> U128;
 
     fn ft_resolve_transfer(
         &mut self,
@@ -19,10 +25,12 @@ pub trait FungibleToken {
 #[ext_contract(ext_self)]
 pub trait ExtSelf {
     fn callback_swap_result(
-        output_token: AccountId,
+        self,
         sender_id: AccountId,
         dex_id: AccountId,
-        #[callback] amount_out: U128
+        output_token: AccountId,
+        input_token: AccountId,
+        input_amount: U128,
     ) -> Promise;
 }
 
@@ -30,10 +38,5 @@ pub trait ExtSelf {
 pub trait RefExchange {
     fn swap(&mut self, actions: Vec<SwapAction>, referral_id: Option<AccountId>) -> U128;
 
-    fn withdraw(
-        &mut self,
-        token_id: AccountId,
-        amount: U128,
-        unregister: Option<bool>,
-    ) -> Promise;
+    fn withdraw(&mut self, token_id: AccountId, amount: U128, unregister: Option<bool>) -> Promise;
 }
