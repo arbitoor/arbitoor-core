@@ -1,14 +1,34 @@
+# Game plan
+
+1. Single DEX swaps for REF and Jumbo
+    - Study REF's router
+    - Study the provider object returned by the wallet adapter.
+    - Study Jupiter's SDK. Follow its naming conventions.
+    - Write SDK
+        1. Constructor
+        2. Low level functions to return single exchange TX objects. Check whether wallet adapter allows sending multiple instructions together.
+        3. Find best route- initially client side (see REF implementation).
+
+2. Split routes (v2): The wallet can sign multiple TXs directed to different contracts using https://github.com/ref-finance/ref-ui/blob/19d5bee1c40e0b98686965e19a590a7f3ea27ac0/src/utils/sender-wallet.ts#L163. Eg. for adding liquidity in REF, you first call `ft_transfer_call()` for each token, then call the `add_liquidity` function on REF.
+
+3. Multi leg swaps and Orderbook based swaps- todo
+
 # DEX aggregator test setup
 
-1. Deploy an instance of test-token for every token needed by pools.
-2. Deploy pools for every token pair
-3. Test cases:
-    1. Ref- single and double swap
-    3. Combination of Ref and Jumbo
+1. Single DEX swap
+    - Best route tests are not immediate priority. We can setup local pools and compare results.
+    - No tests for returned TX structure.
 
-    Stableswap has the same swap interface as regular pools, so we do not need separate tests. Mainnet stableswap pool ID is 1910.
+2. Multi leg swaps
+    1. Deploy an instance of test-token for every token needed by pools.
+    2. Deploy pools for every token pair
+    3. Test cases:
+        1. Ref- single and double swap
+        3. Combination of Ref and Jumbo
 
-4. Have separate unit tests to find best route
+        Stableswap has the same swap interface as regular pools, so we do not need separate tests. Mainnet stableswap pool ID is 1910.
+
+    4. Have separate unit tests to find best route
 
 # Execution plan
 1. Call `ft_transfer_call` on the input token with `v1.comet.near` as the destination.
@@ -77,11 +97,6 @@
     2. Place market orders with `place_bid` or `place_ask`. Market orders are executed immediately. Multi-market swaps can be atomically performed using `batch_ops`.
     3. Withdraw tokens with `withdraw` function
 
-# Issues
-
-1. Can ft_transfer_call() be used for atomic swaps across DEXes?
-
-
 ## Gas research
 
 - 1 TGas = 10^12 gas
@@ -101,28 +116,3 @@
 - Instant swap method: 121 TGas
     - 100 TGas if ft_balance_of and callback is removed
     - Instant swap without outbound transfer: 84
-
-# Game plan
-1. Single DEX swap (REF like)- Call the underlying DEX directly, and attach a memo for indexing.
-2. Orderbooks (spin) Need an intermediary smart contract to deposit, perform market order and withdraw in a single TX. Also need smart contract for indexing.
-3. Two leg swap: Need smart contract. If the second swap fails due to slippage, the user ends up with intermediary tokens. This will deter inter-DEX arb bots.
-4. Split swap across two DEXes: is it possible to sign and send two different TXs together? Yes.
-    - Can batch TXs for instant swaps on REF like DEXes.
-    - For spin like orderbook based swaps, we again make ft_transfer_call to the source token, which calls the swap contract on Comet.
-    - The wallet can sign multiple TXs directed to different contracts using https://github.com/ref-finance/ref-ui/blob/19d5bee1c40e0b98686965e19a590a7f3ea27ac0/src/utils/sender-wallet.ts#L163. Eg. for adding liquidity in REF, you first call `ft_transfer_call()` for each token, then call the `add_liquidity` function on REF.
-
-
-Testing framework to use
-1. Speed
-    - Workspaces-js is slow, but has existing code
-2. Should we use the SDK to find routes in the smart contract tests?
-    - Integration tests involve single and multi-leg swaps across REF and Spin. Finding the best route is out of scope. But a lower level SDK to generate TX objects would be good.
-    - Fork Ref router and test it separately.
-    - SDK should be purely client side, or we have a server based API?
-
-# Usage
-
-```sh
-npm run build
-npm run test:sandbox |& tee output.txt
-```
