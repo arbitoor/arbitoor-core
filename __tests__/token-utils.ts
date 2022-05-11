@@ -41,10 +41,10 @@ export class Token {
    * @param amount Amount to mint
    * @returns
    */
-  mint (accountId: NearAccount, amount: bigint): Transaction {
+  mint (accountId: NearAccount, amount: string): Transaction {
     return this.owner.batch(this.address).functionCall('mint', {
       account_id: accountId,
-      amount: amount.toString()
+      amount,
     })
   }
 
@@ -62,9 +62,9 @@ export class Token {
     })
   }
 
-  async balance(accountId: string): Promise<string> {
+  async balance (accountId: string): Promise<string> {
     return this.address.view('ft_balance_of', {
-      account_id: accountId,
+      account_id: accountId
     })
   }
 }

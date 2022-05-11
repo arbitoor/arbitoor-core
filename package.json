@@ -1,11 +1,13 @@
 {
-  "name": "@comet-ag/comet",
+  "name": "@comethq/comet-sdk",
   "version": "1.0.0",
-  "description": "",
-  "main": "index.js",
+  "description": "The Typescript SDK for Comet, a DEX aggregator on NEAR.",
+  "main": "dist/cjs/index.js",
+  "module": "dist/esm/index.js",
   "scripts": {
-    "build": "RUSTFLAGS='-C link-arg=-s' cargo build --target wasm32-unknown-unknown --features \"test\" && cp ./target/wasm32-unknown-unknown/debug/*.wasm ./compiled_contracts/",
-    "build:release": "RUSTFLAGS='-C link-arg=-s' cargo build --target wasm32-unknown-unknown --release && cp ./target/wasm32-unknown-unknown/release/*.wasm ./compiled_contracts/",
+    "build": "rm -fr dist/ && tsc -P tsconfig.build.json && tsc -P tsconfig.esm.json",
+    "build:contract": "RUSTFLAGS='-C link-arg=-s' cargo build --target wasm32-unknown-unknown --release && cp ./target/wasm32-unknown-unknown/release/*.wasm ./compiled_contracts/",
+    "clean": "rm -fr dist/",
     "test": "npm run build && ava",
     "test:release": "npm run build:release && ava",
     "test:skip-build": "ava",
@@ -13,17 +15,19 @@
     "lint:fix": "eslint --fix .  --ext .ts"
   },
   "eslintConfig": {
-		"extends": "plugin:ava/recommended"
-	},
-  "author": "",
+    "extends": "plugin:ava/recommended"
+  },
+  "author": "Shardul Aeer",
   "license": "ISC",
   "devDependencies": {
+    "@near-wallet-selector/core": "^3.0.2",
     "@typescript-eslint/eslint-plugin": "^5.22.0",
     "@typescript-eslint/parser": "^5.22.0",
     "ava": "^4.0.1",
     "eslint": "^8.14.0",
     "eslint-config-standard": "^17.0.0",
     "eslint-plugin-ava": "^13.2.0",
+    "near-api-js": "^0.44.2",
     "near-workspaces": "2.0.0",
     "ts-node": "^10.7.0"
   }

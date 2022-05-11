@@ -5,15 +5,16 @@ import { RefExchange } from './ref-utils'
 import { Token } from './token-utils'
 
 test('One leg swap', async t => {
-  const { root, alice, comet } = t.context.accounts
+  const alice = t.context.accounts.alice!
+  const comet = t.context.accounts.comet!
 
   // Deploy token contracts
   const token0 = await Token.deploy('token0', alice)
   const token1 = await Token.deploy('token1', alice)
 
   // Mint tokens
-  await token0.mint(alice, 10000n).transact()
-  await token1.mint(alice, 10000n).transact()
+  await token0.mint(alice, '10000').transact()
+  await token1.mint(alice, '10000').transact()
 
   // Deploy REF
   const ref = await RefExchange.deploy('ref', alice)
@@ -40,9 +41,9 @@ test('One leg swap', async t => {
           token_out: token1.address.accountId,
           amount_in: '100',
           min_amount_out: '0'
-        }],
+        }]
       }]
-    }),
+    })
   }, {
     attachedDeposit: '1',
     gas: tGas(300)
@@ -58,15 +59,16 @@ test('One leg swap', async t => {
 })
 
 test('tokens are returned in a failed one leg swap', async t => {
-  const { root, alice, comet } = t.context.accounts
+  const alice = t.context.accounts.alice!
+  const comet = t.context.accounts.comet!
 
   // Deploy token contracts
   const token0 = await Token.deploy('token0', alice)
   const token1 = await Token.deploy('token1', alice)
 
   // Mint tokens
-  await token0.mint(alice, 10000n).transact()
-  await token1.mint(alice, 10000n).transact()
+  await token0.mint(alice, '10000').transact()
+  await token1.mint(alice, '10000').transact()
 
   // Deploy REF
   const ref = await RefExchange.deploy('ref', alice)
@@ -93,9 +95,9 @@ test('tokens are returned in a failed one leg swap', async t => {
           token_out: token1.address.accountId,
           amount_in: '100',
           min_amount_out: '110' // too high, makes tx fail
-        }],
+        }]
       }]
-    }),
+    })
   }, {
     attachedDeposit: '1',
     gas: tGas(300)

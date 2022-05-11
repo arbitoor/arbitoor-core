@@ -25,3 +25,6 @@ compiled-contracts/
 
 # Config files
 nodes-testnet.json
+
+# SDK build files
+dist/

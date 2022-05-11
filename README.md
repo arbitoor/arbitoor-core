@@ -9,9 +9,19 @@
         2. Low level functions to return single exchange TX objects. Check whether wallet adapter allows sending multiple instructions together.
         3. Find best route- initially client side (see REF implementation).
 
-2. Split routes (v2): The wallet can sign multiple TXs directed to different contracts using https://github.com/ref-finance/ref-ui/blob/19d5bee1c40e0b98686965e19a590a7f3ea27ac0/src/utils/sender-wallet.ts#L163. Eg. for adding liquidity in REF, you first call `ft_transfer_call()` for each token, then call the `add_liquidity` function on REF.
+2. Split routes (v2): Use `NearWalletSelector.signAndSendTransactions`. The wallet can sign multiple TXs directed to different contracts using https://github.com/ref-finance/ref-ui/blob/19d5bee1c40e0b98686965e19a590a7f3ea27ac0/src/utils/sender-wallet.ts#L163. Eg. for adding liquidity in REF, you first call `ft_transfer_call()` for each token, then call the `add_liquidity` function on REF.
 
 3. Multi leg swaps and Orderbook based swaps- todo
+
+4. Aurora based swaps- Copy code from REF's UI. This is an add-on for the aggregator.
+
+    - https://wallet.near.org/sign?transactions=DQAAAG1vbmtleWlzLm5lYXIAo66hZ5Dg8T%2BGyeY8sttBfvZM8K0%2BezAfHsJRsv1SCmzSdszH8DkAADwAAABhMGI4Njk5MWM2MjE4YjM2YzFkMTlkNGEyZTllYjBjZTM2MDZlYjQ4LmZhY3RvcnkuYnJpZGdlLm5lYXJJUaTRXjHERt4bKVYvKl%2BFUCuCxKA20xI6biy9KTTeTAEAAAACDwAAAHN0b3JhZ2VfZGVwb3NpdDcAAAB7InJlZ2lzdHJhdGlvbl9vbmx5Ijp0cnVlLCJhY2NvdW50X2lkIjoibW9ua2V5aXMubmVhciJ9AOBX60gbAAAAAID2SuHHAi0VAAAAAAAA%2CDQAAAG1vbmtleWlzLm5lYXIAo66hZ5Dg8T%2BGyeY8sttBfvZM8K0%2BezAfHsJRsv1SCmzTdszH8DkAAAkAAAB3cmFwLm5lYXJJUaTRXjHERt4bKVYvKl%2BFUCuCxKA20xI6biy9KTTeTAEAAAACEAAAAGZ0X3RyYW5zZmVyX2NhbGx3AAAAeyJyZWNlaXZlcl9pZCI6ImF1cm9yYSIsImFtb3VudCI6IjUwMDAwMDAwMDAwMDAwMDAwMDAwMDAwMCIsIm1lbW8iOiIiLCJtc2ciOiIxNjFlNkEyZmZGMGI4N0ZEQjFlNGIxZUM2Y0RjOWU3OTQ4OGQzMzM0In0AYCIlqj8AAAEAAAAAAAAAAAAAAAAAAAA%3D%2CDQAAAG1vbmtleWlzLm5lYXIAo66hZ5Dg8T%2BGyeY8sttBfvZM8K0%2BezAfHsJRsv1SCmzUdszH8DkAAAYAAABhdXJvcmFJUaTRXjHERt4bKVYvKl%2BFUCuCxKA20xI6biy9KTTeTAEAAAACBAAAAGNhbGx9AAAAAMQsMKxswV%2Bsm9k4YYvKoaH66FAdAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAABEAAAAOVCTUQAAAAAAAAAAAAAAACy0XttFF9WUev3jvqv5WlglBoWLAAAAAAAAAAAAAAAAAAAAAAAAAAAAANPCG87M7aEAAAAAYLeYbIgAAAAAAAAAAAAAAAAAAAAAAAA%3D%2CDQAAAG1vbmtleWlzLm5lYXIAo66hZ5Dg8T%2BGyeY8sttBfvZM8K0%2BezAfHsJRsv1SCmzVdszH8DkAAAYAAABhdXJvcmFJUaTRXjHERt4bKVYvKl%2BFUCuCxKA20xI6biy9KTTeTAEAAAACBAAAAGNhbGw9AQAAACy0XttFF9WUev3jvqv5WlglBoWLAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAEAQAAOO0XOQAAAAAAAAAAAAAAAAAAAAAAAAAAAABp4Q3nZnbQgAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAABJE0wAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAoAAAAAAAAAAAAAAAABYeai%2F%2FC4f9seSx7GzcnnlIjTM0AAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAGJ57P8AAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAgAAAAAAAAAAAAAAAMQsMKxswV%2Bsm9k4YYvKoaH66FAdAAAAAAAAAAAAAAAAsSv8paVYBqr2TplSGRikvw%2FECAIAYLeYbIgAAAAAAAAAAAAAAAAAAAAAAAA%3D%2CDQAAAG1vbmtleWlzLm5lYXIAo66hZ5Dg8T%2BGyeY8sttBfvZM8K0%2BezAfHsJRsv1SCmzWdszH8DkAAAYAAABhdXJvcmFJUaTRXjHERt4bKVYvKl%2BFUCuCxKA20xI6biy9KTTeTAEAAAACBAAAAGNhbGy9AAAAALEr%2FKWlWAaq9k6ZUhkYpL8PxAgCAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAACEAAAAazUYSAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAABAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAABJE0wAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAADW1vbmtleWlzLm5lYXIAAAAAAAAAAAAAAAAAAAAAAAAAAGC3mGyIAAAAAAAAAAAAAAAAAAAAAAAA&callbackUrl=https%3A%2F%2Fapp.ref.finance%2F
+
+    - TXs
+        1. Token storage deposit: https://explorer.mainnet.near.org/transactions/AVdCHhFM46mYdAUes4EqbXEMfDo8sYfMqC6oCKF5qspT
+        2. Transfer token to Aurora: https://explorer.mainnet.near.org/transactions/84kGefNaj3ZKZeFGJi5pW7NBjHAfPMtLvHXVdDP47xNN
+        3. Opaque messages sent to Aurora: https://explorer.mainnet.near.org/transactions/5oFCN1aLrCCGJXLi2PEAWB7xwJ1ZnUiGrQGMTSvap2E9, https://explorer.mainnet.near.org/transactions/8TC2XcdUsKNqSnsWQfkkx5WUkmkmXLx6KM9MoGkvzwdA, https://explorer.mainnet.near.org/transactions/5KnMNnaswMULq2b4MiKrveUJDecaNKgZ4LtoeFgA37Jw
+
 
 # DEX aggregator test setup
 
