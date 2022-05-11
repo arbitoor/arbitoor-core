@@ -44,7 +44,7 @@ export class Token {
   mint (accountId: NearAccount, amount: string): Transaction {
     return this.owner.batch(this.address).functionCall('mint', {
       account_id: accountId,
-      amount,
+      amount
     })
   }
 

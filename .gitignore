@@ -28,3 +28,5 @@ nodes-testnet.json
 
 # SDK build files
 dist/
+
+.husky/

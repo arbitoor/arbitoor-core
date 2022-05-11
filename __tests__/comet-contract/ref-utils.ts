@@ -140,7 +140,7 @@ export class RefExchange {
     // Add exchange storage for Alice, so she can LP
     const tx = this.addStorage(signer)
     // Create a liquidity pool
-    tx.actions.push(this.createPool([tokenA.address, tokenB.address], FEE).actions[0])
+    tx.actions.push(this.createPool([tokenA.address, tokenB.address], FEE).actions[0]!)
     await tx.transact()
 
     // Create LP position

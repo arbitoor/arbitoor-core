@@ -4,10 +4,9 @@
     - Study REF's router
     - Study the provider object returned by the wallet adapter.
     - Study Jupiter's SDK. Follow its naming conventions.
-    - Write SDK
-        1. Constructor
-        2. Low level functions to return single exchange TX objects. Check whether wallet adapter allows sending multiple instructions together.
-        3. Find best route- initially client side (see REF implementation).
+    - Write SDK: wrapper on a graphQL API
+        1. `/quote`: Get a ranked list of possible routes
+        2. `/swap`: Get serialized TX to swap
 
 2. Split routes (v2): Use `NearWalletSelector.signAndSendTransactions`. The wallet can sign multiple TXs directed to different contracts using https://github.com/ref-finance/ref-ui/blob/19d5bee1c40e0b98686965e19a590a7f3ea27ac0/src/utils/sender-wallet.ts#L163. Eg. for adding liquidity in REF, you first call `ft_transfer_call()` for each token, then call the `add_liquidity` function on REF.
 
