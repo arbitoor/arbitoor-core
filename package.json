@@ -23,13 +23,16 @@
   "devDependencies": {
     "@jup-ag/core": "^1.0.0-beta.24",
     "@near-wallet-selector/core": "^3.0.2",
+    "@types/big.js": "^6.1.2",
     "@typescript-eslint/eslint-plugin": "^5.22.0",
     "@typescript-eslint/parser": "^5.22.0",
     "ava": "^4.0.1",
+    "big.js": "^6.1.1",
     "eslint": "^8.14.0",
     "eslint-config-standard": "^17.0.0",
     "eslint-plugin-ava": "^13.2.0",
     "husky": "^8.0.1",
+    "mathjs": "^10.5.3",
     "near-api-js": "^0.44.2",
     "near-workspaces": "2.0.0",
     "ts-node": "^10.7.0"
