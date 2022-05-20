@@ -1,6 +1,6 @@
 import test from 'ava'
 import { MainnetRpc, TestnetRpc } from 'near-workspaces'
-
+import { WalletConnection, Near } from 'near-api-js'
 import { Comet } from '../../sdk/index'
 
 test('best route', async () => {
@@ -12,8 +12,8 @@ test('best route', async () => {
 
 
   await comet.computeRoutes({
-    inputToken: 'wrap.near',
-    outputToken: 'a0b86991c6218b36c1d19d4a2e9eb0ce3606eb48.factory.bridge.near',
+    inputToken: 'token.skyward.near',
+    outputToken: 'wrap.near',
     inputAmount: '10000',
     slippage: 5
   })

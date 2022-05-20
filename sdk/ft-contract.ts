@@ -22,7 +22,7 @@ export const ftGetTokenMetadata = async (
   provider: Provider,
   id: string,
 ): Promise<TokenMetadata> => {
-  let metadata = await provider.query<CodeResult>({
+  const metadata = await provider.query<CodeResult>({
     request_type: 'call_function',
     account_id: id,
     method_name: 'ft_metadata',

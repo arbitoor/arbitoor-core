@@ -1,7 +1,9 @@
 import { Provider } from 'near-api-js/lib/providers'
 import { CodeResult } from 'near-workspaces'
 import { ftGetTokenMetadata } from './ft-contract'
+import { FormattedPool, RefPool } from './ref-utils'
 import { stableSmart } from './smartRouteLogic.js'
+import { Pool } from './swap-service'
 
 interface ComputeRoutes {
   inputToken: string,
@@ -30,35 +32,62 @@ export class Comet {
   }
 
   /**
-   * Get all REF pools for a given token pair
-   * @param inputToken
-   * @param outputToken
-   * @returns Array of pool data
+   * Fetch a number of REF pools
+   * @param index Start index for pagination
+   * @param limit Number of pools to fetch
+   * @returns
    */
-  async getPools(inputToken: string, outputToken: string) {
-    // Must filter get_pools(). A subgraph would be good
-    const pool = {
-      "id": 0,
-      "token1Id": "token.skyward.near",
-      "token2Id": "wrap.near",
-      "token1Supply": "75803389933388206770475",
-      "token2Supply": "298359296296588325256362625360",
-      "fee": 30,
-      "shares": "10978869298293164291678580085",
-      "update_time": 1652961867,
-      "token0_price": "0",
-      "Dex": "ref",
-      "amounts": [
-          "75803389933388206770475",
-          "298359296296588325256362625360"
-      ],
-      "reserves": {
-          "token.skyward.near": "75803389933388206770475",
-          "wrap.near": "298359296296588325256362625360"
-      }
+  async getRefPools(index: number, limit: number) {
+    // TODO filter out illiquid pools. There are only 20 liquid pools out of 3k total
+
+    const refPools = await this.provider.query<CodeResult>({
+      request_type: 'call_function',
+      account_id: 'v2.ref-finance.near',
+      method_name: 'get_pools',
+      args_base64: Buffer.from(JSON.stringify({ from_index: index, limit, })).toString("base64"),
+      finality: 'optimistic'
+    }).then((res) => JSON.parse(Buffer.from(res.result).toString()) as RefPool[])
+
+    // TODO remove redundant fields
+    const formattedPools = refPools.map(refPool => {
+      const formattedPool = {
+        id: index,
+        token1Id: refPool.token_account_ids[0]!,
+        token2Id: refPool.token_account_ids[1]!,
+        token1Supply: refPool.amounts[0]!,
+        token2Supply: refPool.amounts[1]!,
+        fee: refPool.total_fee,
+        shares: refPool.shares_total_supply,
+        update_time: 100,
+        token0_price: '0',
+        Dex: 'ref',
+        amounts: refPool.amounts,
+        reserves: {
+          [refPool.token_account_ids[0]!]: refPool.amounts[0]!,
+          [refPool.token_account_ids[1]!]: refPool.amounts[1]!
+        }
+      } as FormattedPool
+      ++index
+
+      return formattedPool
+    })
+
+    return formattedPools
   }
 
-    return [pool]
+  /**
+   * Get REF pools having one of the tokens
+   * @param token1
+   * @param token2
+   * @returns
+   */
+  async getPoolsWithEitherToken(token1: string, token2: string) {
+    // TODO
+    const pools = await this.getRefPools(0, 500)
+    return pools.filter(pool => {
+      return pool.token1Id === token1 || pool.token1Id === token1
+        || pool.token2Id === token2 || pool.token2Id === token2
+    })
   }
   /**
    *
@@ -71,9 +100,7 @@ export class Comet {
     slippage,
     forceFetch = false
   }: ComputeRoutes) {
-    // 1. Find all pool combinations for input and output tokens. Eg. (NEAR, USDC), (NEAR, USN, USDC)
-    // 2. Rank these pools
-    const pools = await this.getPools(inputToken, outputToken)
+    const pools = await this.getPoolsWithEitherToken(inputToken, outputToken)
 
     const stableSmartResult = await stableSmart(
       this.provider,
@@ -83,9 +110,6 @@ export class Comet {
       "1000000000000000000",
       undefined
     ) // works
-    console.log('best', stableSmartResult)
-
-    // filter best pool- compare results of stableSmart() and getHybridStableSmart()
-    // the later only works if either the input or output token is a stablecoin
+    console.log('routes', stableSmartResult)
   }
 }
