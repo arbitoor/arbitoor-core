@@ -1,5 +1,5 @@
 import { Provider } from 'near-api-js/lib/providers'
-import { CodeResult } from 'near-workspaces';
+import { CodeResult } from 'near-workspaces'
 
 export interface TokenMetadata {
   id: string;
@@ -20,7 +20,7 @@ export interface TokenMetadata {
 
 export const ftGetTokenMetadata = async (
   provider: Provider,
-  id: string,
+  id: string
 ): Promise<TokenMetadata> => {
   const metadata = await provider.query<CodeResult>({
     request_type: 'call_function',
@@ -32,6 +32,6 @@ export const ftGetTokenMetadata = async (
 
   return {
     id,
-    ...metadata,
+    ...metadata
   }
-};
+}

@@ -6,6 +6,8 @@ import { checkIntegerSumOfAllocations } from './parallelSwapLogic'; // ok
 import {
   ftGetTokenMetadata,
 } from './ft-contract';
+import { separateRoutes, percentLess } from './numbers';
+import { getPoolEstimate } from './ref-utils'
 
 Big.RM = 0;
 Big.DP = 40;
@@ -2522,6 +2524,60 @@ export function getExpectedOutputFromActionsORIG(actions, outputToken) {
     .filter((item) => item.outputToken === outputToken)
     .map((item) => new Big(item.estimate))
     .reduce((a, b) => a.plus(b), new Big(0));
+}
+
+
+// Deduct slippage and return minimum output amount
+export async function getExpectedOutputFromActions(
+  actions,
+  outputToken,
+  slippageTolerance
+) {
+  // TODO: on cross swap case
+  // console.log('INSIDE EXPECTED OUTPUT FUNC');
+  // console.log(outputToken);
+  // console.log(actions);
+
+  let expectedOutput = new Big(0);
+
+  if (!actions || actions.length === 0) return expectedOutput;
+
+  const routes = separateRoutes(actions, outputToken);
+  console.log('separate routes', routes)
+  for (let i = 0; i < routes.length; i++) {
+    const curRoute = routes[i];
+    console.log('current route', curRoute)
+    if (curRoute.length === 1) {
+      expectedOutput = expectedOutput.plus(curRoute[0].estimate);
+    } else {
+      if (
+        curRoute.every((r) => r.pool.Dex !== 'tri') ||
+        curRoute.every((r) => r.pool.Dex === 'tri')
+      )
+        expectedOutput = expectedOutput.plus(curRoute[1].estimate);
+      else {
+        const secondHopAmountIn = percentLess(
+          slippageTolerance,
+          curRoute[0].estimate
+        );
+
+        // fetch here
+        const secondEstimateOut = await getPoolEstimate({
+          tokenIn: curRoute[1].tokens[1],
+          tokenOut: curRoute[1].tokens[2],
+          amountIn: toNonDivisibleNumber(
+            curRoute[1].tokens[1].decimals,
+            secondHopAmountIn
+          ),
+          Pool: curRoute[1].pool,
+        });
+
+        expectedOutput = expectedOutput.plus(secondEstimateOut.estimate);
+      }
+    }
+  }
+
+  return expectedOutput;
 }
 
 function getFeeForRoute(route) {

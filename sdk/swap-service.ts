@@ -1,4 +1,5 @@
-import Big from 'big.js';
+import Big from 'big.js'
+import { TokenMetadata } from './ft-contract'
 
 export interface ReservesMap {
   [index: string]: string;
@@ -21,23 +22,6 @@ export enum PoolMode {
   SMART = 'smart routing',
   SMART_V2 = 'stableSmart',
   STABLE = 'stable swap',
-}
-
-export interface TokenMetadata {
-  id: string;
-  name: string;
-  symbol: string;
-  decimals: number;
-  icon: string;
-  ref?: number | string;
-  near?: number | string;
-  aurora?: number | string;
-  total?: number;
-  onRef?: boolean;
-  onTri?: boolean;
-  amountLabel?: string;
-  amount?: number;
-  nearNonVisible?: number | string;
 }
 
 export interface RoutePool {

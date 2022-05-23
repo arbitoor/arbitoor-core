@@ -21,7 +21,7 @@ export class Comet {
   // Data is refreshed priodically after this many milliseconds elapse
   routeCacheDuration: number
 
-  constructor({ provider, user, routeCacheDuration }: {
+  constructor ({ provider, user, routeCacheDuration }: {
     provider: Provider,
     user: string,
     routeCacheDuration: number,
@@ -37,14 +37,14 @@ export class Comet {
    * @param limit Number of pools to fetch
    * @returns
    */
-  async getRefPools(index: number, limit: number) {
+  async getRefPools (index: number, limit: number) {
     // TODO filter out illiquid pools. There are only 20 liquid pools out of 3k total
 
     const refPools = await this.provider.query<CodeResult>({
       request_type: 'call_function',
       account_id: 'v2.ref-finance.near',
       method_name: 'get_pools',
-      args_base64: Buffer.from(JSON.stringify({ from_index: index, limit, })).toString("base64"),
+      args_base64: Buffer.from(JSON.stringify({ from_index: index, limit })).toString('base64'),
       finality: 'optimistic'
     }).then((res) => JSON.parse(Buffer.from(res.result).toString()) as RefPool[])
 
@@ -81,7 +81,7 @@ export class Comet {
    * @param token2
    * @returns
    */
-  async getPoolsWithEitherToken(token1: string, token2: string) {
+  async getPoolsWithEitherToken (token1: string, token2: string) {
     // TODO
     const pools = [
       ...await this.getRefPools(0, 500),
@@ -89,11 +89,11 @@ export class Comet {
       ...await this.getRefPools(1000, 500),
       ...await this.getRefPools(1500, 500),
       ...await this.getRefPools(2000, 500),
-      ...await this.getRefPools(2500, 500),
+      ...await this.getRefPools(2500, 500)
     ]
     return pools.filter(pool => {
-      return pool.token1Id === token1 || pool.token1Id === token1
-        || pool.token2Id === token2 || pool.token2Id === token2
+      return pool.token1Id === token1 || pool.token1Id === token1 ||
+        pool.token2Id === token2 || pool.token2Id === token2
     })
   }
 
@@ -101,7 +101,7 @@ export class Comet {
    * Find trade routes from the input to output token, ranked by output amount.
    * @param param0
    */
-  async computeRoutes({
+  async computeRoutes ({
     inputToken,
     outputToken,
     inputAmount,
@@ -121,9 +121,7 @@ export class Comet {
 
     // item 1 and 2 can be part of the same route. Need another step to get output amounts
 
-
     // Convert into TX format. Look at SignedTransaction and Action objects
     //
-
   }
 }
