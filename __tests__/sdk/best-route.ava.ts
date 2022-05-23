@@ -11,10 +11,17 @@ test('best route', async () => {
   })
 
 
-  await comet.computeRoutes({
-    inputToken: 'token.skyward.near',
+  const actions = await comet.computeRoutes({
+    inputToken: 'dac17f958d2ee523a2206206994597c13d831ec7.factory.bridge.near',
     outputToken: 'wrap.near',
-    inputAmount: '10000',
+    inputAmount: '100000000',
     slippage: 5
   })
+  console.log('actions', actions.map(route => {
+    return {
+      estimate: route.estimate,
+      inputToken: route.inputToken,
+      outputToken: route.outputToken,
+    }
+  }))
 })

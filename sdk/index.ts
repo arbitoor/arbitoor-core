@@ -3,7 +3,7 @@ import { CodeResult } from 'near-workspaces'
 import { ftGetTokenMetadata } from './ft-contract'
 import { FormattedPool, RefPool } from './ref-utils'
 import { stableSmart } from './smartRouteLogic.js'
-import { Pool } from './swap-service'
+import { EstimateSwapView, Pool } from './swap-service'
 
 interface ComputeRoutes {
   inputToken: string,
@@ -83,14 +83,22 @@ export class Comet {
    */
   async getPoolsWithEitherToken(token1: string, token2: string) {
     // TODO
-    const pools = await this.getRefPools(0, 500)
+    const pools = [
+      ...await this.getRefPools(0, 500),
+      ...await this.getRefPools(500, 500),
+      ...await this.getRefPools(1000, 500),
+      ...await this.getRefPools(1500, 500),
+      ...await this.getRefPools(2000, 500),
+      ...await this.getRefPools(2500, 500),
+    ]
     return pools.filter(pool => {
       return pool.token1Id === token1 || pool.token1Id === token1
         || pool.token2Id === token2 || pool.token2Id === token2
     })
   }
+
   /**
-   *
+   * Find trade routes from the input to output token, ranked by output amount.
    * @param param0
    */
   async computeRoutes({
@@ -102,14 +110,20 @@ export class Comet {
   }: ComputeRoutes) {
     const pools = await this.getPoolsWithEitherToken(inputToken, outputToken)
 
-    const stableSmartResult = await stableSmart(
+    return stableSmart(
       this.provider,
       pools,
-      "token.skyward.near",
-      "wrap.near",
-      "1000000000000000000",
+      inputToken,
+      outputToken,
+      inputAmount,
       undefined
-    ) // works
-    console.log('routes', stableSmartResult)
+    ) as Promise<EstimateSwapView[]> // works
+
+    // item 1 and 2 can be part of the same route. Need another step to get output amounts
+
+
+    // Convert into TX format. Look at SignedTransaction and Action objects
+    //
+
   }
 }
