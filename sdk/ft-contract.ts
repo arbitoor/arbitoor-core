@@ -35,3 +35,31 @@ export const ftGetTokenMetadata = async (
     ...metadata
   }
 }
+
+export interface FTStorageBalance {
+  total: string;
+  available: string;
+}
+export const ftGetStorageBalance = async (
+  provider: Provider,
+  tokenId: string,
+  accountId: string
+): Promise<FTStorageBalance | null> => {
+  const res = await provider.query<CodeResult>({
+    request_type: 'call_function',
+    account_id: tokenId,
+    method_name: 'storage_balance_of',
+    args_base64: Buffer.from(JSON.stringify({ account_id: accountId })).toString('base64'),
+    finality: 'optimistic'
+  })
+  return JSON.parse(Buffer.from(res.result).toString())
+}
+
+export const round = (decimals: number, minAmountOut: string) => {
+  return Number.isInteger(Number(minAmountOut))
+    ? minAmountOut
+    : Math.ceil(
+      Math.round(Number(minAmountOut) * Math.pow(10, decimals)) /
+          Math.pow(10, decimals)
+    ).toString()
+}
