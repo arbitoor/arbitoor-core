@@ -21,7 +21,7 @@ export class Comet {
   // Data is refreshed priodically after this many milliseconds elapse
   routeCacheDuration: number
 
-  constructor ({ provider, user, routeCacheDuration }: {
+  constructor({ provider, user, routeCacheDuration }: {
     provider: Provider,
     user: string,
     routeCacheDuration: number,
@@ -37,19 +37,19 @@ export class Comet {
    * @param limit Number of pools to fetch
    * @returns
    */
-  async getRefPools (index: number, limit: number) {
+  async getPools(exchange: string, index: number, limit: number) {
     // TODO filter out illiquid pools. There are only 20 liquid pools out of 3k total
 
-    const refPools = await this.provider.query<CodeResult>({
+    const pools = await this.provider.query<CodeResult>({
       request_type: 'call_function',
-      account_id: 'v2.ref-finance.near',
+      account_id: exchange,
       method_name: 'get_pools',
       args_base64: Buffer.from(JSON.stringify({ from_index: index, limit })).toString('base64'),
       finality: 'optimistic'
     }).then((res) => JSON.parse(Buffer.from(res.result).toString()) as RefPool[])
 
     // TODO remove redundant fields
-    const formattedPools = refPools.map(refPool => {
+    const formattedPools = pools.map(refPool => {
       const formattedPool = {
         id: index,
         token1Id: refPool.token_account_ids[0]!,
@@ -60,7 +60,7 @@ export class Comet {
         shares: refPool.shares_total_supply,
         update_time: 100,
         token0_price: '0',
-        Dex: 'ref',
+        Dex: exchange,
         amounts: refPool.amounts,
         reserves: {
           [refPool.token_account_ids[0]!]: refPool.amounts[0]!,
@@ -81,19 +81,20 @@ export class Comet {
    * @param token2
    * @returns
    */
-  async getPoolsWithEitherToken (token1: string, token2: string) {
+  async getPoolsWithEitherToken(exchange: string, token1: string, token2: string) {
     // TODO
     const pools = [
-      ...await this.getRefPools(0, 500),
-      ...await this.getRefPools(500, 500),
-      ...await this.getRefPools(1000, 500),
-      ...await this.getRefPools(1500, 500),
-      ...await this.getRefPools(2000, 500),
-      ...await this.getRefPools(2500, 500)
+      ...await this.getPools(exchange, 0, 500),
+      ...await this.getPools(exchange, 500, 500),
+      ...await this.getPools(exchange, 1000, 500),
+      ...await this.getPools(exchange, 1500, 500),
+      ...await this.getPools(exchange, 2000, 500),
+      ...await this.getPools(exchange, 2500, 500)
     ]
+
     return pools.filter(pool => {
-      return pool.token1Id === token1 || pool.token1Id === token1 ||
-        pool.token2Id === token2 || pool.token2Id === token2
+      return pool.token1Id === token1 || pool.token1Id === token2 ||
+        pool.token2Id === token1 || pool.token2Id === token2
     })
   }
 
@@ -101,27 +102,38 @@ export class Comet {
    * Find trade routes from the input to output token, ranked by output amount.
    * @param param0
    */
-  async computeRoutes ({
+  async computeRoutes({
     inputToken,
     outputToken,
     inputAmount,
     slippage,
     forceFetch = false
   }: ComputeRoutes) {
-    const pools = await this.getPoolsWithEitherToken(inputToken, outputToken)
+    const refPools = await this.getPoolsWithEitherToken('v2.ref-finance.near', inputToken, outputToken)
+    const jumboPools = await this.getPoolsWithEitherToken('v1.jumbo_exchange.near', inputToken, outputToken)
 
-    return stableSmart(
+    const refActions = await stableSmart(
       this.provider,
-      pools,
+      refPools,
       inputToken,
       outputToken,
       inputAmount,
       undefined
-    ) as Promise<EstimateSwapView[]> // works
+    ) as EstimateSwapView[]
 
-    // item 1 and 2 can be part of the same route. Need another step to get output amounts
+    const jumboActions = await stableSmart(
+      this.provider,
+      jumboPools,
+      inputToken,
+      outputToken,
+      inputAmount,
+      undefined
+    ) as EstimateSwapView[]
 
-    // Convert into TX format. Look at SignedTransaction and Action objects
-    //
+    return {
+      ref: refActions,
+      jumbo: jumboActions,
+    }
+
   }
 }

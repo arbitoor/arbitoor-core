@@ -2543,10 +2543,8 @@ export async function getExpectedOutputFromActions(
   if (!actions || actions.length === 0) return expectedOutput;
 
   const routes = separateRoutes(actions, outputToken);
-  console.log('separate routes', routes)
   for (let i = 0; i < routes.length; i++) {
     const curRoute = routes[i];
-    console.log('current route', curRoute)
     if (curRoute.length === 1) {
       expectedOutput = expectedOutput.plus(curRoute[0].estimate);
     } else {
