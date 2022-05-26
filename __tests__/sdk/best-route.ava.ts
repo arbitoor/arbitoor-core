@@ -65,4 +65,6 @@ test('best route', async () => {
 
   console.log('REF txs', JSON.stringify(refTxs))
   console.log('jumbo txs', JSON.stringify(jumboTxs))
+
+  // connect Node wallet and send multiple TXs
 })
