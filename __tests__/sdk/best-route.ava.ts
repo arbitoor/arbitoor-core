@@ -19,7 +19,6 @@ test('best route', async () => {
     inputToken,
     outputToken,
     inputAmount,
-    slippage: 5
   })
   console.log('actions', actions.jumbo.map(route => {
     return {
@@ -48,16 +47,20 @@ test('best route', async () => {
 
   const refTxs = await comet.nearInstantSwap({
     exchange: 'v2.ref-finance.near',
-    tokenIn: tokenInMetadata,
-    tokenOut: tokenOutMetadata,
+    tokenIn: inputToken,
+    tokenOut: outputToken,
+    tokenInDecimals: tokenInMetadata.decimals,
+    tokenOutDecimals: tokenOutMetadata.decimals,
     amountIn: inputAmount,
     swapsToDo: actions.ref,
     slippageTolerance: 5
   })
   const jumboTxs = await comet.nearInstantSwap({
     exchange: 'v1.jumbo-exchange.near',
-    tokenIn: tokenInMetadata,
-    tokenOut: tokenOutMetadata,
+    tokenIn: inputToken,
+    tokenOut: outputToken,
+    tokenInDecimals: tokenInMetadata.decimals,
+    tokenOutDecimals: tokenOutMetadata.decimals,
     amountIn: inputAmount,
     swapsToDo: actions.jumbo,
     slippageTolerance: 5

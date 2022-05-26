@@ -13,16 +13,16 @@ export interface ComputeRoutes {
   inputToken: string,
   outputToken: string,
   inputAmount: string,
-  slippage: number,
-  forceFetch?: boolean,
 }
 
 export interface SwapOptions {
   exchange: string,
   useNearBalance?: boolean;
   swapsToDo: EstimateSwapView[];
-  tokenIn: TokenMetadata;
-  tokenOut: TokenMetadata;
+  tokenIn: string;
+  tokenOut: string;
+  tokenInDecimals: number;
+  tokenOutDecimals: number;
   amountIn: string;
   slippageTolerance: number;
 }
@@ -35,7 +35,7 @@ export class Comet {
   // Data is refreshed priodically after this many milliseconds elapse
   routeCacheDuration: number
 
-  constructor ({ provider, user, routeCacheDuration }: {
+  constructor({ provider, user, routeCacheDuration }: {
     provider: Provider,
     user: string,
     routeCacheDuration: number,
@@ -51,7 +51,7 @@ export class Comet {
    * @param limit Number of pools to fetch
    * @returns
    */
-  async getPools (exchange: string, index: number, limit: number) {
+  async getPools(exchange: string, index: number, limit: number) {
     // TODO filter out illiquid pools. There are only 20 liquid pools out of 3k total
 
     const pools = await this.provider.query<CodeResult>({
@@ -95,7 +95,7 @@ export class Comet {
    * @param token2
    * @returns
    */
-  async getPoolsWithEitherToken (exchange: string, token1: string, token2: string) {
+  async getPoolsWithEitherToken(exchange: string, token1: string, token2: string) {
     // TODO
     const pools = [
       ...await this.getPools(exchange, 0, 500),
@@ -112,22 +112,24 @@ export class Comet {
     })
   }
 
-  async nearInstantSwap ({
+  async nearInstantSwap({
     exchange,
     tokenIn,
     tokenOut,
+    tokenInDecimals,
+    tokenOutDecimals,
     amountIn,
     swapsToDo,
     slippageTolerance
   }: // minAmountOut,
-  SwapOptions) {
+    SwapOptions) {
     const transactions: Transaction[] = []
     const tokenInActions: RefFiFunctionCallOptions[] = []
     const tokenOutActions: RefFiFunctionCallOptions[] = []
 
-    const registerToken = async (token: TokenMetadata) => {
-      const tokenRegistered = await ftGetStorageBalance(this.provider, token.id, this.user).catch(() => {
-        throw new Error(`${token.id} doesn't exist.`)
+    const registerToken = async (tokenId: string) => {
+      const tokenRegistered = await ftGetStorageBalance(this.provider, tokenId, this.user).catch(() => {
+        throw new Error(`${tokenId} doesn't exist.`)
       })
 
       if (tokenRegistered === null) {
@@ -142,7 +144,7 @@ export class Comet {
         })
 
         transactions.push({
-          receiverId: token.id,
+          receiverId: tokenId,
           functionCalls: tokenOutActions
         })
       }
@@ -161,21 +163,21 @@ export class Comet {
           ? percentLess(slippageTolerance, s2d.estimate)
           : '0'
         const allocation = toReadableNumber(
-          tokenIn.decimals,
+          tokenInDecimals,
           scientificNotationToString(s2d.pool.partialAmountIn!)
         )
 
         return {
           pool_id: s2d.pool.id,
-          token_in: tokenIn.id,
-          token_out: tokenOut.id,
+          token_in: tokenIn,
+          token_out: tokenOut,
           amount_in: round(
-            tokenIn.decimals,
-            toNonDivisibleNumber(tokenIn.decimals, allocation)
+            tokenInDecimals,
+            toNonDivisibleNumber(tokenInDecimals, allocation)
           ),
           min_amount_out: round(
-            tokenOut.decimals,
-            toNonDivisibleNumber(tokenOut.decimals, minTokenOutAmount)
+            tokenOutDecimals,
+            toNonDivisibleNumber(tokenOutDecimals, minTokenOutAmount)
           )
         }
       })
@@ -186,7 +188,7 @@ export class Comet {
         methodName: 'ft_transfer_call',
         args: {
           receiver_id: exchange,
-          amount: toNonDivisibleNumber(tokenIn.decimals, amountIn),
+          amount: toNonDivisibleNumber(tokenInDecimals, amountIn),
           msg: JSON.stringify({
             force: 0,
             actions: swapActions
@@ -198,7 +200,7 @@ export class Comet {
       })
 
       transactions.push({
-        receiverId: tokenIn.id,
+        receiverId: tokenIn,
         functionCalls: tokenInActions
       })
     } else if (isSmartRouteV1Swap) {
@@ -207,7 +209,7 @@ export class Comet {
       var actionsList = []
       // let allSwapsTokens = swapsToDo.map((s) => [s.inputToken, s.outputToken]); // to get the hop tokens
       const amountInInt = new Big(amountIn)
-        .times(new Big(10).pow(tokenIn.decimals))
+        .times(new Big(10).pow(tokenInDecimals))
         .toString()
       const swap1 = swapsToDo[0]!
       actionsList.push({
@@ -223,22 +225,22 @@ export class Comet {
         token_in: swap2.inputToken,
         token_out: swap2.outputToken,
         min_amount_out: round(
-          tokenOut.decimals,
+          tokenOutDecimals,
           toNonDivisibleNumber(
-            tokenOut.decimals,
+            tokenOutDecimals,
             percentLess(slippageTolerance, swapsToDo[1]!.estimate)
           )
         )
       })
 
       transactions.push({
-        receiverId: tokenIn.id,
+        receiverId: tokenIn,
         functionCalls: [
           {
             methodName: 'ft_transfer_call',
             args: {
               receiver_id: exchange,
-              amount: toNonDivisibleNumber(tokenIn.decimals, amountIn),
+              amount: toNonDivisibleNumber(tokenInDecimals, amountIn),
               msg: JSON.stringify({
                 force: 0,
                 actions: actionsList
@@ -256,22 +258,22 @@ export class Comet {
       const allSwapsTokens = swapsToDo.map((s) => [s.inputToken, s.outputToken]) // to get the hop tokens
       for (const i in allSwapsTokens) {
         const swapTokens = allSwapsTokens[i]
-        if (swapTokens![0] == tokenIn.id && swapTokens![1] == tokenOut.id) {
+        if (swapTokens![0] == tokenIn && swapTokens![1] == tokenOut) {
           // parallel, direct hop route.
           actionsList.push({
             pool_id: swapsToDo[i]!.pool.id,
-            token_in: tokenIn.id,
-            token_out: tokenOut.id,
+            token_in: tokenIn,
+            token_out: tokenOut,
             amount_in: swapsToDo[i]!.pool.partialAmountIn,
             min_amount_out: round(
-              tokenOut.decimals,
+              tokenOutDecimals,
               toNonDivisibleNumber(
-                tokenOut.decimals,
+                tokenOutDecimals,
                 percentLess(slippageTolerance, swapsToDo[i]!.estimate)
               )
             )
           })
-        } else if (swapTokens![0] == tokenIn.id) {
+        } else if (swapTokens![0] == tokenIn) {
           // first hop in double hop route
           // TODO -- put in a check to make sure this first hop matches with the next (i+1) hop as a second hop.
           actionsList.push({
@@ -289,9 +291,9 @@ export class Comet {
             token_in: swapTokens![0],
             token_out: swapTokens![1],
             min_amount_out: round(
-              tokenOut.decimals,
+              tokenOutDecimals,
               toNonDivisibleNumber(
-                tokenOut.decimals,
+                tokenOutDecimals,
                 percentLess(slippageTolerance, swapsToDo[i]!.estimate)
               )
             )
@@ -300,13 +302,13 @@ export class Comet {
       }
 
       transactions.push({
-        receiverId: tokenIn.id,
+        receiverId: tokenIn,
         functionCalls: [
           {
             methodName: 'ft_transfer_call',
             args: {
               receiver_id: exchange,
-              amount: toNonDivisibleNumber(tokenIn.decimals, amountIn),
+              amount: toNonDivisibleNumber(tokenInDecimals, amountIn),
               msg: JSON.stringify({
                 force: 0,
                 actions: actionsList
@@ -326,12 +328,10 @@ export class Comet {
    * Find trade routes from the input to output token, ranked by output amount.
    * @param param0
    */
-  async computeRoutes ({
+  async computeRoutes({
     inputToken,
     outputToken,
     inputAmount,
-    slippage,
-    forceFetch = false
   }: ComputeRoutes) {
     const refPools = await this.getPoolsWithEitherToken('v2.ref-finance.near', inputToken, outputToken)
     const jumboPools = await this.getPoolsWithEitherToken('v1.jumbo_exchange.near', inputToken, outputToken)
