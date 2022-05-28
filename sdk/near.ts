@@ -16,6 +16,5 @@ export interface FunctionCallOptions {
 
 export interface Transaction {
   receiverId: string;
-  // actions: FunctionCallOptions[];
   actions: Action[],
 }

@@ -102,9 +102,10 @@ export class Comet {
       ...await this.getPools(exchange, 0, 500),
       ...await this.getPools(exchange, 500, 500),
       ...await this.getPools(exchange, 1000, 500),
-      ...await this.getPools(exchange, 1500, 500),
-      ...await this.getPools(exchange, 2000, 500),
-      ...await this.getPools(exchange, 2500, 500)
+      // stableswap unsupported for now
+      // ...await this.getPools(exchange, 1500, 500),
+      // ...await this.getPools(exchange, 2000, 500),
+      // ...await this.getPools(exchange, 2500, 500)
     ]
 
     return pools.filter(pool => {
@@ -187,7 +188,6 @@ export class Comet {
         }
       })
 
-      console.log('registering tokenOut 1', tokenOut)
       await registerToken(tokenOut)
 
       tokenInActions.push({
@@ -215,7 +215,6 @@ export class Comet {
       })
     } else if (isSmartRouteV1Swap) {
       // making sure all actions get included for hybrid stable smart.
-      console.log('registering tokenOut 2', tokenOut)
       await registerToken(tokenOut)
       var actionsList = []
       const swap1 = swapsToDo[0]!
@@ -265,7 +264,6 @@ export class Comet {
       })
     } else {
       // making sure all actions get included.
-      console.log('registering tokenOut 3', tokenOut)
       await registerToken(tokenOut)
       var actionsList = []
       const allSwapsTokens = swapsToDo.map((s) => [s.inputToken, s.outputToken]) // to get the hop tokens

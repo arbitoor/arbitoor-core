@@ -23,6 +23,7 @@
   "devDependencies": {
     "@near-wallet-selector/core": "^4.0.0-alpha.1",
     "@types/big.js": "^6.1.2",
+    "@types/lodash": "^4.14.182",
     "@typescript-eslint/eslint-plugin": "^5.22.0",
     "@typescript-eslint/parser": "^5.22.0",
     "ava": "^4.0.1",
@@ -32,6 +33,7 @@
     "eslint-config-standard": "^17.0.0",
     "eslint-plugin-ava": "^13.2.0",
     "husky": "^8.0.1",
+    "lodash": "^4.17.21",
     "mathjs": "^10.5.3",
     "near-api-js": "^0.44.2",
     "near-workspaces": "2.0.0",

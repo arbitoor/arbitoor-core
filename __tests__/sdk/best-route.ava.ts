@@ -10,9 +10,9 @@ test('best route', async () => {
     routeCacheDuration: 1000
   })
 
-  const inputToken = 'dac17f958d2ee523a2206206994597c13d831ec7.factory.bridge.near'
-  const outputToken = 'wrap.near'
-  const inputAmount = '100000000'
+  const inputToken = 'wrap.near'
+  const outputToken = 'dac17f958d2ee523a2206206994597c13d831ec7.factory.bridge.near'
+  const inputAmount = "100000000000000000000000"
 
   // just returns actions for one swap
   const actions = await comet.computeRoutes({
@@ -20,26 +20,19 @@ test('best route', async () => {
     outputToken,
     inputAmount,
   })
-  console.log('actions', actions.jumbo.map(route => {
-    return {
-      estimate: route.estimate,
-      inputToken: route.inputToken,
-      outputToken: route.outputToken,
-      pool: route.pool
-    }
-  }))
 
   const refOutput = await getExpectedOutputFromActions(
+    MainnetRpc,
     actions.ref,
     outputToken,
     5
   )
   const jumboOutput = await getExpectedOutputFromActions(
+    MainnetRpc,
     actions.jumbo,
     outputToken,
     5
   )
-
   console.log('output', refOutput.toString(), jumboOutput.toString())
 
   const tokenInMetadata = await ftGetTokenMetadata(MainnetRpc, inputToken)

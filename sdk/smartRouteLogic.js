@@ -2529,6 +2529,7 @@ export function getExpectedOutputFromActionsORIG(actions, outputToken) {
 
 // Deduct slippage and return minimum output amount
 export async function getExpectedOutputFromActions(
+  provider,
   actions,
   outputToken,
   slippageTolerance
@@ -2551,8 +2552,11 @@ export async function getExpectedOutputFromActions(
       if (
         curRoute.every((r) => r.pool.Dex !== 'tri') ||
         curRoute.every((r) => r.pool.Dex === 'tri')
-      )
+      ) {
+        // TODO fix, stableswap should not lead to this branch
         expectedOutput = expectedOutput.plus(curRoute[1].estimate);
+      }
+
       else {
         const secondHopAmountIn = percentLess(
           slippageTolerance,
@@ -2561,6 +2565,7 @@ export async function getExpectedOutputFromActions(
 
         // fetch here
         const secondEstimateOut = await getPoolEstimate({
+          provider,
           tokenIn: curRoute[1].tokens[1],
           tokenOut: curRoute[1].tokens[2],
           amountIn: toNonDivisibleNumber(
@@ -2574,7 +2579,6 @@ export async function getExpectedOutputFromActions(
       }
     }
   }
-
   return expectedOutput;
 }
 

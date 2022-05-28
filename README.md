@@ -125,3 +125,14 @@
 - Instant swap method: 121 TGas
     - 100 TGas if ft_balance_of and callback is removed
     - Instant swap without outbound transfer: 84
+
+# wNEAR -> USDT issue
+
+1. REF UI returns
+    wrap.near -> DAI (6b175474e89094c44da98b954eedeac495271d0f.factory.bridge.near) -> USDT
+
+2. SDK returns
+    wrap.near -> USDC (a0b86991c6218b36c1d19d4a2e9eb0ce3606eb48.factory.bridge.near) -> USDT
+
+    It's using uni v2 algorithm on the stable pool 1910.
+
