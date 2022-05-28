@@ -1,9 +1,10 @@
 import Big from 'big.js'
 import { Provider } from 'near-api-js/lib/providers'
-import { CodeResult } from 'near-workspaces'
+import { Action, CodeResult } from 'near-workspaces'
+import { FunctionCallAction, Transaction } from '@near-wallet-selector/core'
 import { ONE_YOCTO_NEAR, STORAGE_TO_REGISTER_WITH_MFT } from './constants'
 import { ftGetStorageBalance, ftGetTokenMetadata, round, TokenMetadata } from './ft-contract'
-import { RefFiFunctionCallOptions, Transaction } from './near'
+import { FunctionCallOptions } from './near'
 import { percentLess, toReadableNumber, scientificNotationToString, toNonDivisibleNumber } from './numbers'
 import { FormattedPool, RefPool } from './ref-utils'
 import { stableSmart } from './smartRouteLogic.js'
@@ -121,31 +122,35 @@ export class Comet {
     amountIn,
     swapsToDo,
     slippageTolerance
-  }: // minAmountOut,
-    SwapOptions) {
-    const transactions: Transaction[] = []
-    const tokenInActions: RefFiFunctionCallOptions[] = []
-    const tokenOutActions: RefFiFunctionCallOptions[] = []
+  }: SwapOptions) {
+    const transactions = new Array<Transaction>()
+    const tokenInActions = new Array<FunctionCallAction>()
+    const tokenOutActions = new Array<FunctionCallAction>()
 
     const registerToken = async (tokenId: string) => {
+      console.log('registering', tokenId)
       const tokenRegistered = await ftGetStorageBalance(this.provider, tokenId, this.user).catch(() => {
         throw new Error(`${tokenId} doesn't exist.`)
       })
 
       if (tokenRegistered === null) {
         tokenOutActions.push({
-          methodName: 'storage_deposit',
-          args: {
-            registration_only: true,
-            account_id: this.user
-          },
-          gas: '30000000000000',
-          amount: STORAGE_TO_REGISTER_WITH_MFT
+          type: 'FunctionCall',
+          params: {
+            methodName: 'storage_deposit',
+            args: {
+              registration_only: true,
+              account_id: this.user
+            },
+            gas: '30000000000000',
+            deposit: STORAGE_TO_REGISTER_WITH_MFT
+          }
         })
 
         transactions.push({
           receiverId: tokenId,
-          functionCalls: tokenOutActions
+          signerId: this.user,
+          actions: tokenOutActions
         })
       }
     }
@@ -182,41 +187,43 @@ export class Comet {
         }
       })
 
+      console.log('registering tokenOut 1', tokenOut)
       await registerToken(tokenOut)
 
       tokenInActions.push({
-        methodName: 'ft_transfer_call',
-        args: {
-          receiver_id: exchange,
-          amount: toNonDivisibleNumber(tokenInDecimals, amountIn),
-          msg: JSON.stringify({
-            force: 0,
-            actions: swapActions
-          })
-        },
-        gas: '180000000000000',
-        amount: ONE_YOCTO_NEAR
-        // deposit: '1',
+        type: 'FunctionCall',
+        params: {
+          methodName: 'ft_transfer_call',
+          args: {
+            receiver_id: exchange,
+            amount: amountIn,
+            msg: JSON.stringify({
+              force: 0,
+              actions: swapActions
+            })
+          },
+          gas: '180000000000000',
+          deposit: '1',
+        }
+
       })
 
       transactions.push({
         receiverId: tokenIn,
-        functionCalls: tokenInActions
+        signerId: this.user,
+        actions: tokenInActions
       })
     } else if (isSmartRouteV1Swap) {
       // making sure all actions get included for hybrid stable smart.
+      console.log('registering tokenOut 2', tokenOut)
       await registerToken(tokenOut)
       var actionsList = []
-      // let allSwapsTokens = swapsToDo.map((s) => [s.inputToken, s.outputToken]); // to get the hop tokens
-      const amountInInt = new Big(amountIn)
-        .times(new Big(10).pow(tokenInDecimals))
-        .toString()
       const swap1 = swapsToDo[0]!
       actionsList.push({
         pool_id: swap1.pool.id,
         token_in: swap1.inputToken,
         token_out: swap1.outputToken,
-        amount_in: amountInInt,
+        amount_in: amountIn,
         min_amount_out: '0'
       })
       const swap2 = swapsToDo[1]!
@@ -235,24 +242,30 @@ export class Comet {
 
       transactions.push({
         receiverId: tokenIn,
-        functionCalls: [
+        signerId: this.user,
+        actions: [
           {
-            methodName: 'ft_transfer_call',
-            args: {
-              receiver_id: exchange,
-              amount: toNonDivisibleNumber(tokenInDecimals, amountIn),
-              msg: JSON.stringify({
-                force: 0,
-                actions: actionsList
-              })
-            },
-            gas: '180000000000000',
-            amount: ONE_YOCTO_NEAR
+            type: 'FunctionCall',
+            params: {
+              methodName: 'ft_transfer_call',
+              args: {
+                receiver_id: exchange,
+                amount: amountIn,
+                msg: JSON.stringify({
+                  force: 0,
+                  actions: actionsList
+                })
+              },
+              gas: '180000000000000',
+              deposit: '1'
+            }
+
           }
         ]
       })
     } else {
       // making sure all actions get included.
+      console.log('registering tokenOut 3', tokenOut)
       await registerToken(tokenOut)
       var actionsList = []
       const allSwapsTokens = swapsToDo.map((s) => [s.inputToken, s.outputToken]) // to get the hop tokens
@@ -303,19 +316,24 @@ export class Comet {
 
       transactions.push({
         receiverId: tokenIn,
-        functionCalls: [
+        signerId: this.user,
+        actions: [
           {
-            methodName: 'ft_transfer_call',
-            args: {
-              receiver_id: exchange,
-              amount: toNonDivisibleNumber(tokenInDecimals, amountIn),
-              msg: JSON.stringify({
-                force: 0,
-                actions: actionsList
-              })
-            },
-            gas: '180000000000000',
-            amount: ONE_YOCTO_NEAR
+            type: 'FunctionCall',
+            params: {
+              methodName: 'ft_transfer_call',
+              args: {
+                receiver_id: exchange,
+                amount: amountIn,
+                msg: JSON.stringify({
+                  force: 0,
+                  actions: actionsList
+                })
+              },
+              gas: '180000000000000',
+              deposit: '1'
+            }
+
           }
         ]
       })

@@ -1,14 +1,21 @@
+import { Action } from "near-workspaces";
+
 export interface RefFiViewFunctionOptions {
-  methodName: string;
-  args?: object;
+
 }
 
-export interface RefFiFunctionCallOptions extends RefFiViewFunctionOptions {
-  gas?: string;
-  amount?: string;
+export interface FunctionCallOptions {
+  type: 'FunctionCall',
+  params: {
+    methodName: string;
+    args?: object;
+    gas?: string;
+    deposit?: string;
+  }
 }
 
 export interface Transaction {
   receiverId: string;
-  functionCalls: RefFiFunctionCallOptions[];
+  // actions: FunctionCallOptions[];
+  actions: Action[],
 }
