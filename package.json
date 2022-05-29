@@ -13,7 +13,9 @@
     "test:skip-build": "ava",
     "lint": "eslint .  --ext .ts",
     "lint:fix": "eslint --fix .  --ext .ts",
-    "prepare": "husky install"
+    "prepare": "husky install",
+    "prepublishOnly": "npm run build",
+    "prebuild": "npm run build"
   },
   "eslintConfig": {
     "extends": "plugin:ava/recommended"
