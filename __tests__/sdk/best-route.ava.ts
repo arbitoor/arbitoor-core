@@ -49,7 +49,7 @@ test('best route', async () => {
     slippageTolerance: 5
   })
   const jumboTxs = await comet.nearInstantSwap({
-    exchange: 'v1.jumbo-exchange.near',
+    exchange: 'v1.jumbo_exchange.near',
     tokenIn: inputToken,
     tokenOut: outputToken,
     tokenInDecimals: tokenInMetadata.decimals,
