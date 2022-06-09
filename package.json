@@ -1,5 +1,5 @@
 {
-  "name": "@comethq/comet-sdk",
+  "name": "@arbitoor/arbitoor-core",
   "version": "1.0.0",
   "description": "The Typescript SDK for Comet, a DEX aggregator on NEAR.",
   "main": "dist/cjs/index.js",
@@ -14,8 +14,7 @@
     "lint": "eslint .  --ext .ts",
     "lint:fix": "eslint --fix .  --ext .ts",
     "prepare": "husky install",
-    "prepublishOnly": "npm run build",
-    "prebuild": "npm run build"
+    "prepublishOnly": "npm run build"
   },
   "eslintConfig": {
     "extends": "plugin:ava/recommended"

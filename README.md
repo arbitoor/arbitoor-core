@@ -136,3 +136,94 @@
 
     It's using uni v2 algorithm on the stable pool 1910.
 
+# Invalid character issue
+
+TX sent before REF approval
+
+```json
+{
+    "transactions": [
+        {
+            "receiverId": "dac17f958d2ee523a2206206994597c13d831ec7.factory.bridge.near",
+            "signerId": "donotfear.near",
+            "actions": [
+                {
+                    "type": "FunctionCall",
+                    "params": {
+                        "methodName": "storage_deposit",
+                        "args": {
+                            "registration_only": true,
+                            "account_id": "donotfear.near"
+                        },
+                        "gas": "30000000000000",
+                        "deposit": "0.1"
+                    }
+                }
+            ]
+        },
+        {
+            "receiverId": "wrap.near",
+            "signerId": "donotfear.near",
+            "actions": [
+                {
+                    "type": "FunctionCall",
+                    "params": {
+                        "methodName": "ft_transfer_call",
+                        "args": {
+                            "receiver_id": "v1.jumbo_exchange.near",
+                            "amount": "1000000000000000000000000",
+                            "msg": "{\"force\":0,\"actions\":[{\"pool_id\":4,\"token_in\":\"wrap.near\",\"token_out\":\"dac17f958d2ee523a2206206994597c13d831ec7.factory.bridge.near\",\"amount_in\":\"1000000000000000000000000\",\"min_amount_out\":\"4921650\"}]}"
+                        },
+                        "gas": "180000000000000",
+                        "deposit": "1"
+                    }
+                }
+            ]
+        }
+    ]
+}
+```
+
+```json
+{
+    "transactions": [
+        {
+            "receiverId": "dac17f958d2ee523a2206206994597c13d831ec7.factory.bridge.near",
+            "signerId": "donotfear.near",
+            "actions": [
+                {
+                    "type": "FunctionCall",
+                    "params": {
+                        "methodName": "storage_deposit",
+                        "args": {
+                            "registration_only": true,
+                            "account_id": "donotfear.near"
+                        },
+                        "gas": "30000000000000",
+                        "deposit": "0.1"
+                    }
+                }
+            ]
+        },
+        {
+            "receiverId": "wrap.near",
+            "signerId": "donotfear.near",
+            "actions": [
+                {
+                    "type": "FunctionCall",
+                    "params": {
+                        "methodName": "ft_transfer_call",
+                        "args": {
+                            "receiver_id": "v2.ref-finance.near",
+                            "amount": "1000000000000000000000000",
+                            "msg": "{\"force\":0,\"actions\":[{\"pool_id\":4,\"token_in\":\"wrap.near\",\"token_out\":\"dac17f958d2ee523a2206206994597c13d831ec7.factory.bridge.near\",\"amount_in\":\"1000000000000000000000000\",\"min_amount_out\":\"4954191\"}]}"
+                        },
+                        "gas": "180000000000000",
+                        "deposit": "1"
+                    }
+                }
+            ]
+        }
+    ]
+}
+```
