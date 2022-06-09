@@ -136,94 +136,15 @@
 
     It's using uni v2 algorithm on the stable pool 1910.
 
-# Invalid character issue
+# Stableswap support
 
-TX sent before REF approval
+- Code breaks at at STABLE_POOL_ID = 1910. Had to disable fetches here.
+- computeRoutes() actions hold a wrong estimate. Perhaps stableswap output is calculated, but overridden by larger uni v2 formula. Maybe we should disable 1910 for uni v2 algorithm.
+    - computeRoutes
+    - stableSmart
+    - smartRouteLogic.js (getSmartRouteSwapActions): REF UI doesn't handle stable pool here. This is for regular pools.
+    - getExpectedOutputFromActions() is used to calculate output amount. REF only passes a single element array. There must be a separate function to generate stable pool actions.
+- REF has two algorithms:
+    1. stableSmart: do not use 1910 here. This is giving wrong value.
+    2. hybridStableSmart: Need to integrate this in SDK
 
-```json
-{
-    "transactions": [
-        {
-            "receiverId": "dac17f958d2ee523a2206206994597c13d831ec7.factory.bridge.near",
-            "signerId": "donotfear.near",
-            "actions": [
-                {
-                    "type": "FunctionCall",
-                    "params": {
-                        "methodName": "storage_deposit",
-                        "args": {
-                            "registration_only": true,
-                            "account_id": "donotfear.near"
-                        },
-                        "gas": "30000000000000",
-                        "deposit": "0.1"
-                    }
-                }
-            ]
-        },
-        {
-            "receiverId": "wrap.near",
-            "signerId": "donotfear.near",
-            "actions": [
-                {
-                    "type": "FunctionCall",
-                    "params": {
-                        "methodName": "ft_transfer_call",
-                        "args": {
-                            "receiver_id": "v1.jumbo_exchange.near",
-                            "amount": "1000000000000000000000000",
-                            "msg": "{\"force\":0,\"actions\":[{\"pool_id\":4,\"token_in\":\"wrap.near\",\"token_out\":\"dac17f958d2ee523a2206206994597c13d831ec7.factory.bridge.near\",\"amount_in\":\"1000000000000000000000000\",\"min_amount_out\":\"4921650\"}]}"
-                        },
-                        "gas": "180000000000000",
-                        "deposit": "1"
-                    }
-                }
-            ]
-        }
-    ]
-}
-```
-
-```json
-{
-    "transactions": [
-        {
-            "receiverId": "dac17f958d2ee523a2206206994597c13d831ec7.factory.bridge.near",
-            "signerId": "donotfear.near",
-            "actions": [
-                {
-                    "type": "FunctionCall",
-                    "params": {
-                        "methodName": "storage_deposit",
-                        "args": {
-                            "registration_only": true,
-                            "account_id": "donotfear.near"
-                        },
-                        "gas": "30000000000000",
-                        "deposit": "0.1"
-                    }
-                }
-            ]
-        },
-        {
-            "receiverId": "wrap.near",
-            "signerId": "donotfear.near",
-            "actions": [
-                {
-                    "type": "FunctionCall",
-                    "params": {
-                        "methodName": "ft_transfer_call",
-                        "args": {
-                            "receiver_id": "v2.ref-finance.near",
-                            "amount": "1000000000000000000000000",
-                            "msg": "{\"force\":0,\"actions\":[{\"pool_id\":4,\"token_in\":\"wrap.near\",\"token_out\":\"dac17f958d2ee523a2206206994597c13d831ec7.factory.bridge.near\",\"amount_in\":\"1000000000000000000000000\",\"min_amount_out\":\"4954191\"}]}"
-                        },
-                        "gas": "180000000000000",
-                        "deposit": "1"
-                    }
-                }
-            ]
-        }
-    ]
-}
-```

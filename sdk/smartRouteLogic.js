@@ -1631,6 +1631,8 @@ export async function getSmartRouteSwapActions(
       .div(new Big(10).pow(hopOutputTokenDecimals))
       .toString();
 
+    // stableswap doesn't reach here. Maybe we need to avoid stable pool in the general algorithm
+
     if (
       hops[i].inputToken == inputToken &&
       hops[i].outputToken == outputToken
@@ -2248,41 +2250,6 @@ function getGraphFromPoolList(poolList) {
   return g;
 }
 
-////////////////////////////////////
-
-// MAIN FUNCTION
-
-////////////////////////////////////
-
-// TODO -- incorporate the following integrated function, which tries to
-// account for stablecoins within the context of smart routing.
-
-//TODO -- need the right API / hooks for GETSTABLESWAPACTION function and GETPARALLELSWAPACTIONS functions.
-
-//TODO -- transform the actions generated in this function into tranaction to execute.
-
-//TRYING: GETSTABLESWAPACTION <==> instantSwapGetTransactions
-
-
-// async function GETPARALLELSWAPACTIONS(
-//   pools,
-//   inputToken,
-//   outputToken,
-//   amountIn,
-//   slippageTolerance,
-//   maxNumberParallelSwaps = 3
-// ) {
-//   return await getSmartRouteSwapActions(
-//     pools,
-//     inputToken,
-//     outputToken,
-//     amountIn,
-//     slippageTolerance,
-//     2,
-//     maxNumberParallelSwaps
-//   );
-// }
-
 export async function stableSmart(
   provider,
   pools,
@@ -2546,14 +2513,17 @@ export async function getExpectedOutputFromActions(
   const routes = separateRoutes(actions, outputToken);
   for (let i = 0; i < routes.length; i++) {
     const curRoute = routes[i];
+    console.log('current route', curRoute)
     if (curRoute.length === 1) {
+      console.log('first')
+      // estimate is incorrectly calculated
       expectedOutput = expectedOutput.plus(curRoute[0].estimate);
+
     } else {
       if (
         curRoute.every((r) => r.pool.Dex !== 'tri') ||
         curRoute.every((r) => r.pool.Dex === 'tri')
       ) {
-        // TODO fix, stableswap should not lead to this branch
         expectedOutput = expectedOutput.plus(curRoute[1].estimate);
       }
 

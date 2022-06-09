@@ -10,9 +10,9 @@ test('best route', async () => {
     routeCacheDuration: 1000
   })
 
-  const inputToken = 'wrap.near'
+  const inputToken = 'a0b86991c6218b36c1d19d4a2e9eb0ce3606eb48.factory.bridge.near'
   const outputToken = 'dac17f958d2ee523a2206206994597c13d831ec7.factory.bridge.near'
-  const inputAmount = "100000000000000000000000"
+  const inputAmount = "1000000"
 
   // just returns actions for one swap
   const actions = await comet.computeRoutes({

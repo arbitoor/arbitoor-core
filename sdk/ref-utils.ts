@@ -122,6 +122,7 @@ export async function getStablePool(provider: Provider) {
   return JSON.parse(Buffer.from(res.result).toString())
 }
 
+// not called in our case
 export const getPoolEstimate = async ({
   provider,
   tokenIn,

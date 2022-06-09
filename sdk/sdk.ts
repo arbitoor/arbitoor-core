@@ -97,15 +97,14 @@ export class Comet {
    * @returns
    */
   async getPoolsWithEitherToken(exchange: string, token1: string, token2: string) {
-    // TODO
+    // TODO only fetch high liquidity pools
     const pools = [
       ...await this.getPools(exchange, 0, 500),
       ...await this.getPools(exchange, 500, 500),
       ...await this.getPools(exchange, 1000, 500),
-      // stableswap unsupported for now
-      // ...await this.getPools(exchange, 1500, 500),
-      // ...await this.getPools(exchange, 2000, 500),
-      // ...await this.getPools(exchange, 2500, 500)
+      // stable pool 1910 omitted
+      ...await this.getPools(exchange, 1500, 410),
+      ...await this.getPools(exchange, 1911, 500),
     ]
 
     return pools.filter(pool => {
@@ -352,6 +351,7 @@ export class Comet {
     const refPools = await this.getPoolsWithEitherToken('v2.ref-finance.near', inputToken, outputToken)
     const jumboPools = await this.getPoolsWithEitherToken('v1.jumbo_exchange.near', inputToken, outputToken)
 
+    // doesn't account for stable pool
     const refActions = await stableSmart(
       this.provider,
       refPools,
