@@ -1,24 +1,35 @@
 import test from 'ava'
 import { MainnetRpc } from 'near-workspaces'
 import { Comet, ftGetTokenMetadata } from '../../sdk'
+import { InMemoryProvider } from '../../sdk/AccountProvider'
 import { getExpectedOutputFromActions } from '../../sdk/smartRouteLogic'
 
 test('best route', async () => {
+  const user = 'test.near'
+
+  const inMemoryProvider = new InMemoryProvider(MainnetRpc)
+
   const comet = new Comet({
     provider: MainnetRpc,
-    user: 'test.near',
+    accountProvider: inMemoryProvider,
+    user,
     routeCacheDuration: 1000
   })
 
   const inputToken = 'a0b86991c6218b36c1d19d4a2e9eb0ce3606eb48.factory.bridge.near'
   const outputToken = 'dac17f958d2ee523a2206206994597c13d831ec7.factory.bridge.near'
-  const inputAmount = "1000000"
+  const inputAmount = '1000000'
+
+  // Fetch storage details of output token
+  await inMemoryProvider.ftFetchStorageBalance(outputToken, user)
+
+  // Fetch all pools
 
   // just returns actions for one swap
   const actions = await comet.computeRoutes({
     inputToken,
     outputToken,
-    inputAmount,
+    inputAmount
   })
 
   const refOutput = await getExpectedOutputFromActions(

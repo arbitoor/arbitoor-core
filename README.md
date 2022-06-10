@@ -148,3 +148,14 @@
     1. stableSmart: do not use 1910 here. This is giving wrong value.
     2. hybridStableSmart: Need to integrate this in SDK
 
+# Optimizing fetches
+- Fetching done at
+    1. ft-contract/ftGetTokenMetadata: in smartRouteLogic.js.
+    2. ft-contract/ftGetStorageBalance: In sdk.ts to know whether storage deposit is needed. Can be cached as a (token, bool) map. Read whenever a new token is picked. Optimize later by re-fetching every 10 seconds if value is false.
+    3. ref-utils/getPools: In getPoolsWithEitherToken() > computeRoutes(). This is the main function needed.
+
+- Whenever a new token is selected, or a refresh is triggered-
+    1. Refetch pools: we need fresh state to know the best route
+    2. Know whether storage is needed
+
+- Wallet provider can be replaced with Cache provider

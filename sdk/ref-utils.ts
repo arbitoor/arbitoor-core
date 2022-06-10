@@ -31,7 +31,7 @@ export interface FormattedPool {
   Dex: string;
   amounts: string[];
   reserves: {
-      [key: string]: string,
+    [key: string]: string,
   }
 }
 
@@ -40,7 +40,7 @@ const getStablePoolEstimate = ({
   tokenOut,
   amountIn,
   stablePoolInfo,
-  stablePool,
+  stablePool
 }: {
   tokenIn: TokenMetadata;
   tokenOut: TokenMetadata;
@@ -53,17 +53,17 @@ const getStablePoolEstimate = ({
     tokenOut.id,
     amountIn,
     stablePoolInfo
-  ) as [number, number, number];
+  ) as [number, number, number]
 
   const amountOut =
     amount_swapped < 0
       ? '0'
-      : toPrecision(scientificNotationToString(amount_swapped.toString()), 0);
+      : toPrecision(scientificNotationToString(amount_swapped.toString()), 0)
 
   const dyOut =
     amount_swapped < 0
       ? '0'
-      : toPrecision(scientificNotationToString(dy.toString()), 0);
+      : toPrecision(scientificNotationToString(dy.toString()), 0)
 
   return {
     estimate: toReadableNumber(STABLE_LP_TOKEN_DECIMALS, amountOut),
@@ -71,9 +71,9 @@ const getStablePoolEstimate = ({
     pool: { ...stablePool, Dex: 'ref' },
     token: tokenIn,
     outputToken: tokenOut.id,
-    inputToken: tokenIn.id,
-  };
-};
+    inputToken: tokenIn.id
+  }
+}
 
 const getSinglePoolEstimate = (
   tokenIn: TokenMetadata,
@@ -111,15 +111,63 @@ const getSinglePoolEstimate = (
   }
 }
 
-export async function getStablePool(provider: Provider) {
+export async function getPool (provider: Provider, poolId: number) {
   const res = await provider.query<CodeResult>({
     request_type: 'call_function',
     account_id: 'v2.ref-finance.near',
     method_name: 'get_stable_pool',
-    args_base64: Buffer.from(JSON.stringify({ pool_id: STABLE_POOL_ID })).toString('base64'),
+    args_base64: Buffer.from(JSON.stringify({ pool_id: poolId })).toString('base64'),
     finality: 'optimistic'
   })
   return JSON.parse(Buffer.from(res.result).toString())
+}
+
+export function getStablePool (provider: Provider) {
+  return getPool(provider, STABLE_POOL_ID)
+}
+
+/**
+  * Fetches a number of REF pools
+  * @param provider The RPC provider
+  * @param index Start index for pagination
+  * @param limit Number of pools to fetch
+  * @returns
+  */
+export async function getPools (provider: Provider, exchange: string, index: number, limit: number) {
+  // TODO filter out illiquid pools. There are only 20 liquid pools out of 3k total
+  const pools = await provider.query<CodeResult>({
+    request_type: 'call_function',
+    account_id: exchange,
+    method_name: 'get_pools',
+    args_base64: Buffer.from(JSON.stringify({ from_index: index, limit })).toString('base64'),
+    finality: 'optimistic'
+  }).then((res) => JSON.parse(Buffer.from(res.result).toString()) as RefPool[])
+
+  // TODO remove redundant fields
+  const formattedPools = pools.map(refPool => {
+    const formattedPool = {
+      id: index,
+      token1Id: refPool.token_account_ids[0]!,
+      token2Id: refPool.token_account_ids[1]!,
+      token1Supply: refPool.amounts[0]!,
+      token2Supply: refPool.amounts[1]!,
+      fee: refPool.total_fee,
+      shares: refPool.shares_total_supply,
+      update_time: 100,
+      token0_price: '0',
+      Dex: exchange,
+      amounts: refPool.amounts,
+      reserves: {
+        [refPool.token_account_ids[0]!]: refPool.amounts[0]!,
+        [refPool.token_account_ids[1]!]: refPool.amounts[1]!
+      }
+    } as FormattedPool
+    ++index
+
+    return formattedPool
+  })
+
+  return formattedPools
 }
 
 // not called in our case
@@ -148,11 +196,11 @@ export const getPoolEstimate = async ({
       tokenOut,
       amountIn: toReadableNumber(tokenIn.decimals, amountIn),
       stablePoolInfo,
-      stablePool: Pool,
-    });
+      stablePool: Pool
+    })
     console.log('got stable estimate', stableEstimate)
     return stableEstimate
   } else {
-    return getSinglePoolEstimate(tokenIn, tokenOut, Pool, amountIn);
+    return getSinglePoolEstimate(tokenIn, tokenOut, Pool, amountIn)
   }
 }

@@ -3,12 +3,13 @@ import { Provider } from 'near-api-js/lib/providers'
 import { Action, CodeResult } from 'near-workspaces'
 import { FunctionCallAction, Transaction } from '@near-wallet-selector/core'
 import { STORAGE_TO_REGISTER_WITH_MFT } from './constants'
-import { ftGetStorageBalance, ftGetTokenMetadata, round, TokenMetadata } from './ft-contract'
+import { ftGetStorageBalance, round } from './ft-contract'
 import { FunctionCallOptions } from './near'
 import { percentLess, toReadableNumber, scientificNotationToString, toNonDivisibleNumber } from './numbers'
-import { FormattedPool, RefPool } from './ref-utils'
+import { FormattedPool, getPools, RefPool } from './ref-utils'
 import { stableSmart } from './smartRouteLogic.js'
 import { EstimateSwapView, Pool, PoolMode } from './swap-service'
+import { AccountProvider } from './AccountProvider'
 
 export interface ComputeRoutes {
   inputToken: string,
@@ -31,63 +32,25 @@ export interface SwapOptions {
 export class Comet {
   // NEAR provider to fetch data
   provider: Provider
+
+  // To fetch accounts
+  accountProvider: AccountProvider
+
   // User address for swaps
   user: string
   // Data is refreshed priodically after this many milliseconds elapse
   routeCacheDuration: number
 
-  constructor({ provider, user, routeCacheDuration }: {
+  constructor ({ provider, accountProvider, user, routeCacheDuration }: {
     provider: Provider,
+    accountProvider: AccountProvider,
     user: string,
     routeCacheDuration: number,
   }) {
     this.provider = provider
+    this.accountProvider = accountProvider
     this.user = user
     this.routeCacheDuration = routeCacheDuration
-  }
-
-  /**
-   * Fetch a number of REF pools
-   * @param index Start index for pagination
-   * @param limit Number of pools to fetch
-   * @returns
-   */
-  async getPools(exchange: string, index: number, limit: number) {
-    // TODO filter out illiquid pools. There are only 20 liquid pools out of 3k total
-
-    const pools = await this.provider.query<CodeResult>({
-      request_type: 'call_function',
-      account_id: exchange,
-      method_name: 'get_pools',
-      args_base64: Buffer.from(JSON.stringify({ from_index: index, limit })).toString('base64'),
-      finality: 'optimistic'
-    }).then((res) => JSON.parse(Buffer.from(res.result).toString()) as RefPool[])
-
-    // TODO remove redundant fields
-    const formattedPools = pools.map(refPool => {
-      const formattedPool = {
-        id: index,
-        token1Id: refPool.token_account_ids[0]!,
-        token2Id: refPool.token_account_ids[1]!,
-        token1Supply: refPool.amounts[0]!,
-        token2Supply: refPool.amounts[1]!,
-        fee: refPool.total_fee,
-        shares: refPool.shares_total_supply,
-        update_time: 100,
-        token0_price: '0',
-        Dex: exchange,
-        amounts: refPool.amounts,
-        reserves: {
-          [refPool.token_account_ids[0]!]: refPool.amounts[0]!,
-          [refPool.token_account_ids[1]!]: refPool.amounts[1]!
-        }
-      } as FormattedPool
-      ++index
-
-      return formattedPool
-    })
-
-    return formattedPools
   }
 
   /**
@@ -96,15 +59,15 @@ export class Comet {
    * @param token2
    * @returns
    */
-  async getPoolsWithEitherToken(exchange: string, token1: string, token2: string) {
+  async getPoolsWithEitherToken (exchange: string, token1: string, token2: string) {
     // TODO only fetch high liquidity pools
     const pools = [
-      ...await this.getPools(exchange, 0, 500),
-      ...await this.getPools(exchange, 500, 500),
-      ...await this.getPools(exchange, 1000, 500),
+      ...await getPools(this.provider, exchange, 0, 500),
+      ...await getPools(this.provider, exchange, 500, 500),
+      ...await getPools(this.provider, exchange, 1000, 500),
       // stable pool 1910 omitted
-      ...await this.getPools(exchange, 1500, 410),
-      ...await this.getPools(exchange, 1911, 500),
+      ...await getPools(this.provider, exchange, 1500, 410),
+      ...await getPools(this.provider, exchange, 1911, 500)
     ]
 
     return pools.filter(pool => {
@@ -113,7 +76,7 @@ export class Comet {
     })
   }
 
-  async nearInstantSwap({
+  async nearInstantSwap ({
     exchange,
     tokenIn,
     tokenOut,
@@ -128,10 +91,8 @@ export class Comet {
     const tokenOutActions = new Array<FunctionCallAction>()
 
     const registerToken = async (tokenId: string) => {
-      console.log('registering', tokenId)
-      const tokenRegistered = await ftGetStorageBalance(this.provider, tokenId, this.user).catch(() => {
-        throw new Error(`${tokenId} doesn't exist.`)
-      })
+      const tokenRegistered = this.accountProvider.ftGetStorageBalance(tokenId, this.user)
+      console.log('registered', tokenRegistered)
 
       if (tokenRegistered === null) {
         tokenOutActions.push({
@@ -202,7 +163,7 @@ export class Comet {
             })
           },
           gas: '180000000000000',
-          deposit: '1',
+          deposit: '1'
         }
 
       })
@@ -343,10 +304,10 @@ export class Comet {
    * Find trade routes from the input to output token, ranked by output amount.
    * @param param0
    */
-  async computeRoutes({
+  async computeRoutes ({
     inputToken,
     outputToken,
-    inputAmount,
+    inputAmount
   }: ComputeRoutes) {
     const refPools = await this.getPoolsWithEitherToken('v2.ref-finance.near', inputToken, outputToken)
     const jumboPools = await this.getPoolsWithEitherToken('v1.jumbo_exchange.near', inputToken, outputToken)

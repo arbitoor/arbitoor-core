@@ -1,4 +1,4 @@
-import { Action } from "near-workspaces";
+import { Action } from 'near-workspaces'
 
 export interface RefFiViewFunctionOptions {
 
