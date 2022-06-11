@@ -1,5 +1,7 @@
 import { CodeResult, Provider } from 'near-workspaces'
+import { JUMBO, REF } from './constants'
 import { FTStorageBalance } from './ft-contract'
+import { FormattedPool, getPools } from './ref-utils'
 
 export interface AccountProvider {
   /**
@@ -9,6 +11,10 @@ export interface AccountProvider {
   * @returns Storage balance or undefined
   */
   ftGetStorageBalance(token: string, accountId: string): FTStorageBalance | undefined
+
+  getRefPools(): FormattedPool[]
+
+  getJumboPools(): FormattedPool[]
 }
 
 /**
@@ -16,14 +22,38 @@ export interface AccountProvider {
  */
 export class InMemoryProvider implements AccountProvider {
   // RPC provider
-  provider: Provider
+  private provider: Provider
 
   // Whether an address is registered on the token contract
   private tokenStorageCache: Map<[string, string], FTStorageBalance>
 
+  private refPools: FormattedPool[]
+  private jumboPools: FormattedPool[]
+
   constructor (provider: Provider) {
     this.provider = provider
     this.tokenStorageCache = new Map()
+    this.refPools = []
+    this.jumboPools = []
+  }
+
+  async fetchPools () {
+    this.refPools = [
+      ...await getPools(this.provider, REF, 0, 500),
+      ...await getPools(this.provider, REF, 500, 500),
+      ...await getPools(this.provider, REF, 1000, 500),
+      // stable pool 1910 omitted
+      ...await getPools(this.provider, REF, 1500, 410),
+      ...await getPools(this.provider, REF, 1911, 500)
+    ]
+
+    this.jumboPools = [
+      ...await getPools(this.provider, JUMBO, 0, 500),
+      ...await getPools(this.provider, JUMBO, 500, 500),
+      ...await getPools(this.provider, JUMBO, 1000, 500)
+    ]
+
+    // TODO store stable pool 1910 separately
   }
 
   /**
@@ -48,11 +78,12 @@ export class InMemoryProvider implements AccountProvider {
     }
   }
 
-  /**
-   *
-   */
-  async fetchPools () {
+  getRefPools () {
+    return this.refPools
+  }
 
+  getJumboPools () {
+    return this.jumboPools
   }
 
   ftGetStorageBalance (

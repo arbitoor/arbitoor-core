@@ -1,5 +1,6 @@
 import BigNumber from 'bignumber.js'
 import { CodeResult, Provider } from 'near-workspaces'
+import { REF } from './constants'
 import { TokenMetadata } from './ft-contract'
 import { toReadableNumber, scientificNotationToString, toPrecision } from './numbers'
 import { getSwappedAmount, StablePool, STABLE_LP_TOKEN_DECIMALS, STABLE_POOL_ID } from './stable-swap'
@@ -114,7 +115,7 @@ const getSinglePoolEstimate = (
 export async function getPool (provider: Provider, poolId: number) {
   const res = await provider.query<CodeResult>({
     request_type: 'call_function',
-    account_id: 'v2.ref-finance.near',
+    account_id: REF,
     method_name: 'get_stable_pool',
     args_base64: Buffer.from(JSON.stringify({ pool_id: poolId })).toString('base64'),
     finality: 'optimistic'

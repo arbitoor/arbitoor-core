@@ -1,7 +1,7 @@
 import { Provider } from 'near-api-js/lib/providers'
 import { FunctionCallAction, Transaction } from '@near-wallet-selector/core'
 import { TokenListProvider, TokenInfo } from '@tonic-foundation/token-list'
-import { STORAGE_TO_REGISTER_WITH_MFT } from './constants'
+import { JUMBO, REF, STORAGE_TO_REGISTER_WITH_MFT } from './constants'
 import { round } from './ft-contract'
 import { percentLess, toReadableNumber, scientificNotationToString, toNonDivisibleNumber } from './numbers'
 import { FormattedPool, getPools, RefPool } from './ref-utils'
@@ -57,21 +57,27 @@ export class Comet {
 
   /**
    * Get REF pools having one of the tokens
+   * @param exchange
    * @param token1
    * @param token2
    * @returns
    */
-  async getPoolsWithEitherToken (exchange: string, token1: string, token2: string) {
-    // TODO only fetch high liquidity pools
-    const pools = [
-      ...await getPools(this.provider, exchange, 0, 500),
-      ...await getPools(this.provider, exchange, 500, 500),
-      ...await getPools(this.provider, exchange, 1000, 500),
-      // stable pool 1910 omitted
-      ...await getPools(this.provider, exchange, 1500, 410),
-      ...await getPools(this.provider, exchange, 1911, 500)
-    ]
+  getPoolsWithEitherToken (exchange: string, token1: string, token2: string) {
+    // Read from cache
+    // const pools = [
+    //   ...await getPools(this.provider, exchange, 0, 500),
+    //   ...await getPools(this.provider, exchange, 500, 500),
+    //   ...await getPools(this.provider, exchange, 1000, 500),
+    //   // stable pool 1910 omitted
+    //   ...await getPools(this.provider, exchange, 1500, 410),
+    //   ...await getPools(this.provider, exchange, 1911, 500)
+    // ]
 
+    const pools = exchange == REF
+      ? this.accountProvider.getRefPools()
+      : this.accountProvider.getJumboPools()
+
+    // filter cached pools
     return pools.filter(pool => {
       return pool.token1Id === token1 || pool.token1Id === token2 ||
         pool.token2Id === token1 || pool.token2Id === token2
@@ -314,8 +320,8 @@ export class Comet {
     inputAmount
   }: ComputeRoutes) {
     // Read from cache
-    const refPools = await this.getPoolsWithEitherToken('v2.ref-finance.near', inputToken, outputToken)
-    const jumboPools = await this.getPoolsWithEitherToken('v1.jumbo_exchange.near', inputToken, outputToken)
+    const refPools = this.getPoolsWithEitherToken(REF, inputToken, outputToken)
+    const jumboPools = this.getPoolsWithEitherToken(JUMBO, inputToken, outputToken)
 
     // doesn't account for stable pool
     const refActions = await stableSmart(

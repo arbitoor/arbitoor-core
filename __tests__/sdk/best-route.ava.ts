@@ -3,6 +3,7 @@ import test from 'ava'
 import { MainnetRpc } from 'near-workspaces'
 import { Comet } from '../../sdk'
 import { InMemoryProvider } from '../../sdk/AccountProvider'
+import { JUMBO, REF } from '../../sdk/constants'
 import { getExpectedOutputFromActions } from '../../sdk/smartRouteLogic'
 
 test('best route', async () => {
@@ -33,6 +34,7 @@ test('best route', async () => {
 
   // Fetch storage details of output token
   await inMemoryProvider.ftFetchStorageBalance(outputToken, user)
+  await inMemoryProvider.fetchPools()
 
   // Fetch all pools
 
@@ -56,7 +58,7 @@ test('best route', async () => {
   console.log('output', refOutput.toString(), jumboOutput.toString())
 
   const refTxs = comet.nearInstantSwap({
-    exchange: 'v2.ref-finance.near',
+    exchange: REF,
     tokenIn: inputToken,
     tokenOut: outputToken,
 
@@ -68,7 +70,7 @@ test('best route', async () => {
     slippageTolerance: 5
   })
   const jumboTxs = comet.nearInstantSwap({
-    exchange: 'v1.jumbo_exchange.near',
+    exchange: JUMBO,
     tokenIn: inputToken,
     tokenOut: outputToken,
     tokenInDecimals,
