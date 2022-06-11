@@ -43,21 +43,19 @@ test('best route', async () => {
     inputAmount
   })
 
-  const refOutput = await getExpectedOutputFromActions(
-    MainnetRpc,
+  const refOutput = getExpectedOutputFromActions(
     actions.ref,
     outputToken,
     5
   )
-  const jumboOutput = await getExpectedOutputFromActions(
-    MainnetRpc,
+  const jumboOutput = getExpectedOutputFromActions(
     actions.jumbo,
     outputToken,
     5
   )
   console.log('output', refOutput.toString(), jumboOutput.toString())
 
-  const refTxs = await comet.nearInstantSwap({
+  const refTxs = comet.nearInstantSwap({
     exchange: 'v2.ref-finance.near',
     tokenIn: inputToken,
     tokenOut: outputToken,
@@ -69,7 +67,7 @@ test('best route', async () => {
     swapsToDo: actions.ref,
     slippageTolerance: 5
   })
-  const jumboTxs = await comet.nearInstantSwap({
+  const jumboTxs = comet.nearInstantSwap({
     exchange: 'v1.jumbo_exchange.near',
     tokenIn: inputToken,
     tokenOut: outputToken,

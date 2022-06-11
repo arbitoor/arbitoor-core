@@ -171,36 +171,34 @@ export async function getPools (provider: Provider, exchange: string, index: num
 }
 
 // not called in our case
-export const getPoolEstimate = async ({
-  provider,
+export const getPoolEstimate = ({
   tokenIn,
   tokenOut,
   amountIn,
   Pool
 }: {
-  provider: Provider,
   tokenIn: TokenMetadata;
   tokenOut: TokenMetadata;
   amountIn: string;
   Pool: Pool;
 }) => {
-  console.log('pool id', Pool.id)
   // TODO fix stable pool
-  // return getSinglePoolEstimate(tokenIn, tokenOut, Pool, amountIn)
-  if (Number(Pool.id) === STABLE_POOL_ID) {
-    console.log('got stable pool')
-    // const stablePoolInfo = (await getStablePoolFromCache())[1];
-    const stablePoolInfo = await getStablePool(provider)
-    const stableEstimate = getStablePoolEstimate({
-      tokenIn,
-      tokenOut,
-      amountIn: toReadableNumber(tokenIn.decimals, amountIn),
-      stablePoolInfo,
-      stablePool: Pool
-    })
-    console.log('got stable estimate', stableEstimate)
-    return stableEstimate
-  } else {
-    return getSinglePoolEstimate(tokenIn, tokenOut, Pool, amountIn)
-  }
+  return getSinglePoolEstimate(tokenIn, tokenOut, Pool, amountIn)
+
+  // if (Number(Pool.id) === STABLE_POOL_ID) {
+  //   // read stable pool from cache, instead of provider
+  //   // const stablePoolInfo = (await getStablePoolFromCache())[1];
+  //   const stablePoolInfo = await getStablePool(provider)
+  //   const stableEstimate = getStablePoolEstimate({
+  //     tokenIn,
+  //     tokenOut,
+  //     amountIn: toReadableNumber(tokenIn.decimals, amountIn),
+  //     stablePoolInfo,
+  //     stablePool: Pool
+  //   })
+  //   console.log('got stable estimate', stableEstimate)
+  //   return stableEstimate
+  // } else {
+  //   return getSinglePoolEstimate(tokenIn, tokenOut, Pool, amountIn)
+  // }
 }

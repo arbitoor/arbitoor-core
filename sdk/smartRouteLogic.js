@@ -2277,7 +2277,6 @@ export function getExpectedOutputFromActionsORIG(actions, outputToken) {
 
 // Deduct slippage and return minimum output amount
 export async function getExpectedOutputFromActions(
-  provider,
   actions,
   outputToken,
   slippageTolerance
@@ -2315,8 +2314,7 @@ export async function getExpectedOutputFromActions(
         );
 
         // fetch here
-        const secondEstimateOut = await getPoolEstimate({
-          provider,
+        const secondEstimateOut = getPoolEstimate({
           tokenIn: curRoute[1].tokens[1],
           tokenOut: curRoute[1].tokens[2],
           amountIn: toNonDivisibleNumber(

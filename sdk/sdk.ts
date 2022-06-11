@@ -78,7 +78,7 @@ export class Comet {
     })
   }
 
-  async nearInstantSwap ({
+  nearInstantSwap ({
     exchange,
     tokenIn,
     tokenOut,
