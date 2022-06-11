@@ -150,7 +150,7 @@
 
 # Optimizing fetches
 - Fetching done at
-    1. ft-contract/ftGetTokenMetadata: in smartRouteLogic.js.
+    1. ft-contract/ftGetTokenMetadata: in smartRouteLogic.js for decimal places and token metadata. Replaced with tonic token list.
     2. ft-contract/ftGetStorageBalance: In sdk.ts to know whether storage deposit is needed. Can be cached as a (token, bool) map. Read whenever a new token is picked. Optimize later by re-fetching every 10 seconds if value is false.
     3. ref-utils/getPools: In getPoolsWithEitherToken() > computeRoutes(). This is the main function needed.
 

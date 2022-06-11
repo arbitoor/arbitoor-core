@@ -1,10 +1,8 @@
-import Big from 'big.js'
 import { Provider } from 'near-api-js/lib/providers'
-import { Action, CodeResult } from 'near-workspaces'
 import { FunctionCallAction, Transaction } from '@near-wallet-selector/core'
+import { TokenListProvider, TokenInfo } from '@tonic-foundation/token-list'
 import { STORAGE_TO_REGISTER_WITH_MFT } from './constants'
-import { ftGetStorageBalance, round } from './ft-contract'
-import { FunctionCallOptions } from './near'
+import { round } from './ft-contract'
 import { percentLess, toReadableNumber, scientificNotationToString, toNonDivisibleNumber } from './numbers'
 import { FormattedPool, getPools, RefPool } from './ref-utils'
 import { stableSmart } from './smartRouteLogic.js'
@@ -41,9 +39,12 @@ export class Comet {
   // Data is refreshed priodically after this many milliseconds elapse
   routeCacheDuration: number
 
-  constructor ({ provider, accountProvider, user, routeCacheDuration }: {
+  tokenMap: Map<string, TokenInfo>
+
+  constructor ({ provider, accountProvider, user, routeCacheDuration, tokenMap }: {
     provider: Provider,
     accountProvider: AccountProvider,
+    tokenMap: Map<string, TokenInfo>,
     user: string,
     routeCacheDuration: number,
   }) {
@@ -51,6 +52,7 @@ export class Comet {
     this.accountProvider = accountProvider
     this.user = user
     this.routeCacheDuration = routeCacheDuration
+    this.tokenMap = tokenMap
   }
 
   /**
@@ -90,9 +92,8 @@ export class Comet {
     const tokenInActions = new Array<FunctionCallAction>()
     const tokenOutActions = new Array<FunctionCallAction>()
 
-    const registerToken = async (tokenId: string) => {
+    const registerToken = (tokenId: string) => {
       const tokenRegistered = this.accountProvider.ftGetStorageBalance(tokenId, this.user)
-      console.log('registered', tokenRegistered)
 
       if (tokenRegistered === null) {
         tokenOutActions.push({
@@ -148,7 +149,7 @@ export class Comet {
         }
       })
 
-      await registerToken(tokenOut)
+      registerToken(tokenOut)
 
       tokenInActions.push({
         type: 'FunctionCall',
@@ -175,7 +176,7 @@ export class Comet {
       })
     } else if (isSmartRouteV1Swap) {
       // making sure all actions get included for hybrid stable smart.
-      await registerToken(tokenOut)
+      registerToken(tokenOut)
       var actionsList = []
       const swap1 = swapsToDo[0]!
       actionsList.push({
@@ -224,7 +225,7 @@ export class Comet {
       })
     } else {
       // making sure all actions get included.
-      await registerToken(tokenOut)
+      registerToken(tokenOut)
       var actionsList = []
       const allSwapsTokens = swapsToDo.map((s) => [s.inputToken, s.outputToken]) // to get the hop tokens
       for (const i in allSwapsTokens) {
@@ -302,6 +303,9 @@ export class Comet {
 
   /**
    * Find trade routes from the input to output token, ranked by output amount.
+   *
+   * This function should return array of transactions, with output amounts.
+   *
    * @param param0
    */
   async computeRoutes ({
@@ -309,12 +313,13 @@ export class Comet {
     outputToken,
     inputAmount
   }: ComputeRoutes) {
+    // Read from cache
     const refPools = await this.getPoolsWithEitherToken('v2.ref-finance.near', inputToken, outputToken)
     const jumboPools = await this.getPoolsWithEitherToken('v1.jumbo_exchange.near', inputToken, outputToken)
 
     // doesn't account for stable pool
     const refActions = await stableSmart(
-      this.provider,
+      this.tokenMap,
       refPools,
       inputToken,
       outputToken,
@@ -323,7 +328,7 @@ export class Comet {
     ) as EstimateSwapView[]
 
     const jumboActions = await stableSmart(
-      this.provider,
+      this.tokenMap,
       jumboPools,
       inputToken,
       outputToken,
@@ -331,6 +336,7 @@ export class Comet {
       undefined
     ) as EstimateSwapView[]
 
+    // Order by output amount
     return {
       ref: refActions,
       jumbo: jumboActions

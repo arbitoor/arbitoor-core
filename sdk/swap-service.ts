@@ -50,12 +50,11 @@ export interface EstimateSwapView {
   intl?: any;
   dy?: string;
   status?: PoolMode;
-  token?: TokenMetadata;
   noFeeAmountOut?: string;
   inputToken?: string;
   outputToken?: string;
   nodeRoute?: string[];
-  tokens?: TokenMetadata[];
+  tokens?: TokenMetadata[]; // redundant
   routeInputToken?: string;
   routeOutputToken?: string;
   route?: RoutePool[];
