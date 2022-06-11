@@ -3,8 +3,6 @@ import test from 'ava'
 import { MainnetRpc } from 'near-workspaces'
 import { Comet } from '../../sdk'
 import { InMemoryProvider } from '../../sdk/AccountProvider'
-import { JUMBO, REF } from '../../sdk/constants'
-import { getExpectedOutputFromActions } from '../../sdk/smartRouteLogic'
 
 test('best route', async () => {
   const user = 'test.near'
@@ -29,57 +27,18 @@ test('best route', async () => {
   const inputToken = 'a0b86991c6218b36c1d19d4a2e9eb0ce3606eb48.factory.bridge.near'
   const outputToken = 'dac17f958d2ee523a2206206994597c13d831ec7.factory.bridge.near'
   const inputAmount = '1000000'
-  const tokenInDecimals = 6
-  const tokenOutDecimals = 6
+  const slippageTolerance = 5
 
-  // Fetch storage details of output token
+  // Poll for pools and storage. If storage is set, then storage polling can be stopped.
   await inMemoryProvider.ftFetchStorageBalance(outputToken, user)
   await inMemoryProvider.fetchPools()
 
-  // Fetch all pools
-
   // just returns actions for one swap
-  const actions = await comet.computeRoutes({
+  const routes = await comet.computeRoutes({
     inputToken,
     outputToken,
-    inputAmount
+    inputAmount,
+    slippageTolerance
   })
-
-  const refOutput = getExpectedOutputFromActions(
-    actions.ref,
-    outputToken,
-    5
-  )
-  const jumboOutput = getExpectedOutputFromActions(
-    actions.jumbo,
-    outputToken,
-    5
-  )
-  console.log('output', refOutput.toString(), jumboOutput.toString())
-
-  const refTxs = comet.nearInstantSwap({
-    exchange: REF,
-    tokenIn: inputToken,
-    tokenOut: outputToken,
-
-    // Decimals can be found inside the SDK via token list
-    tokenInDecimals,
-    tokenOutDecimals,
-    amountIn: inputAmount,
-    swapsToDo: actions.ref,
-    slippageTolerance: 5
-  })
-  const jumboTxs = comet.nearInstantSwap({
-    exchange: JUMBO,
-    tokenIn: inputToken,
-    tokenOut: outputToken,
-    tokenInDecimals,
-    tokenOutDecimals,
-    amountIn: inputAmount,
-    swapsToDo: actions.jumbo,
-    slippageTolerance: 5
-  })
-
-  console.log('REF txs', JSON.stringify(refTxs))
-  console.log('jumbo txs', JSON.stringify(jumboTxs))
+  console.log('routes', routes.map(route => route.output.toString()))
 })

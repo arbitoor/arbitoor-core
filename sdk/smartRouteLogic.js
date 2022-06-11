@@ -2276,7 +2276,7 @@ export function getExpectedOutputFromActionsORIG(actions, outputToken) {
 
 
 // Deduct slippage and return minimum output amount
-export async function getExpectedOutputFromActions(
+export function getExpectedOutputFromActions(
   actions,
   outputToken,
   slippageTolerance

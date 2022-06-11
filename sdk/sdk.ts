@@ -1,11 +1,10 @@
 import { Provider } from 'near-api-js/lib/providers'
 import { FunctionCallAction, Transaction } from '@near-wallet-selector/core'
-import { TokenListProvider, TokenInfo } from '@tonic-foundation/token-list'
+import {TokenInfo } from '@tonic-foundation/token-list'
 import { JUMBO, REF, STORAGE_TO_REGISTER_WITH_MFT } from './constants'
 import { round } from './ft-contract'
 import { percentLess, toReadableNumber, scientificNotationToString, toNonDivisibleNumber } from './numbers'
-import { FormattedPool, getPools, RefPool } from './ref-utils'
-import { stableSmart } from './smartRouteLogic.js'
+import { getExpectedOutputFromActions, stableSmart } from './smartRouteLogic.js'
 import { EstimateSwapView, Pool, PoolMode } from './swap-service'
 import { AccountProvider } from './AccountProvider'
 
@@ -13,6 +12,7 @@ export interface ComputeRoutes {
   inputToken: string,
   outputToken: string,
   inputAmount: string,
+  slippageTolerance: number,
 }
 
 export interface SwapOptions {
@@ -21,8 +21,6 @@ export interface SwapOptions {
   swapsToDo: EstimateSwapView[];
   tokenIn: string;
   tokenOut: string;
-  tokenInDecimals: number;
-  tokenOutDecimals: number;
   amountIn: string;
   slippageTolerance: number;
 }
@@ -64,15 +62,6 @@ export class Comet {
    */
   getPoolsWithEitherToken (exchange: string, token1: string, token2: string) {
     // Read from cache
-    // const pools = [
-    //   ...await getPools(this.provider, exchange, 0, 500),
-    //   ...await getPools(this.provider, exchange, 500, 500),
-    //   ...await getPools(this.provider, exchange, 1000, 500),
-    //   // stable pool 1910 omitted
-    //   ...await getPools(this.provider, exchange, 1500, 410),
-    //   ...await getPools(this.provider, exchange, 1911, 500)
-    // ]
-
     const pools = exchange == REF
       ? this.accountProvider.getRefPools()
       : this.accountProvider.getJumboPools()
@@ -88,8 +77,6 @@ export class Comet {
     exchange,
     tokenIn,
     tokenOut,
-    tokenInDecimals,
-    tokenOutDecimals,
     amountIn,
     swapsToDo,
     slippageTolerance
@@ -97,6 +84,9 @@ export class Comet {
     const transactions = new Array<Transaction>()
     const tokenInActions = new Array<FunctionCallAction>()
     const tokenOutActions = new Array<FunctionCallAction>()
+
+    const tokenInDecimals = this.tokenMap.get(tokenIn)!.decimals
+    const tokenOutDecimals = this.tokenMap.get(tokenIn)!.decimals
 
     const registerToken = (tokenId: string) => {
       const tokenRegistered = this.accountProvider.ftGetStorageBalance(tokenId, this.user)
@@ -317,7 +307,8 @@ export class Comet {
   async computeRoutes ({
     inputToken,
     outputToken,
-    inputAmount
+    inputAmount,
+    slippageTolerance
   }: ComputeRoutes) {
     // Read from cache
     const refPools = this.getPoolsWithEitherToken(REF, inputToken, outputToken)
@@ -342,10 +333,43 @@ export class Comet {
       undefined
     ) as EstimateSwapView[]
 
-    // Order by output amount
-    return {
-      ref: refActions,
-      jumbo: jumboActions
-    }
+    return [{
+      actions: refActions,
+      output: getExpectedOutputFromActions(
+        refActions,
+        outputToken,
+        slippageTolerance
+      ),
+      txs: this.nearInstantSwap({
+        exchange: REF,
+        tokenIn: inputToken,
+        tokenOut: outputToken,
+        amountIn: inputAmount,
+        swapsToDo: refActions,
+        slippageTolerance,
+      })
+    }, {
+      actions: jumboActions,
+      output: getExpectedOutputFromActions(
+        jumboActions,
+        outputToken,
+        slippageTolerance
+      ),
+      txs: this.nearInstantSwap({
+        exchange: JUMBO,
+        tokenIn: inputToken,
+        tokenOut: outputToken,
+        amountIn: inputAmount,
+        swapsToDo: jumboActions,
+        slippageTolerance,
+      })
+    }].sort(
+      (a, b) => { return Number(a.output.gte(b.output)) }
+    )
   }
+}
+
+
+export interface SwapRoute {
+  output: number,
 }
