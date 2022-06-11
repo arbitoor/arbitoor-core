@@ -334,6 +334,7 @@ export class Comet {
     ) as EstimateSwapView[]
 
     return [{
+      dex: REF,
       actions: refActions,
       output: getExpectedOutputFromActions(
         refActions,
@@ -349,6 +350,7 @@ export class Comet {
         slippageTolerance,
       })
     }, {
+      dex: JUMBO,
       actions: jumboActions,
       output: getExpectedOutputFromActions(
         jumboActions,
