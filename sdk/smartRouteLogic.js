@@ -1253,7 +1253,7 @@ function* combinations(arr, r) {
 //     # toward these 2nd hop routes in the same ratio as their route input allocations.
 
 export async function getSmartRouteSwapActions(
-  tokenMap,
+  accountProvider,
   pools,
   inputToken,
   outputToken,
@@ -1617,7 +1617,7 @@ export async function getSmartRouteSwapActions(
   // console.log(hops);
 
   for (var i in hops) {
-    const hopOutputTokenDecimals = tokenMap.get(hops[i].outputToken).decimals;
+    const hopOutputTokenDecimals = (await accountProvider.getTokenMetadata(hops[i].outputToken)).decimals;
 
     let expectedHopOutput = getOutputSingleHop(
       hops[i].pool,
@@ -1642,7 +1642,10 @@ export async function getSmartRouteSwapActions(
       var status = 'stableSmart';
     }
 
-    const tokens = hops[i].nodeRoute.map((t) => tokenMap.get(t))
+    const tokens = []
+    for (const token of hops[i].nodeRoute) {
+      tokens.push(await accountProvider.getTokenMetadata(token))
+    }
 
     actions[i] = {
       estimate: decimalEstimate,
@@ -1680,7 +1683,7 @@ export async function getSmartRouteSwapActions(
   }
   // now set partial amount in for second hops equal to zero:
   // also, set the total price impact value.
-  let overallPriceImpact = await calculateSmartRouteV2PriceImpact(tokenMap, actions);
+  let overallPriceImpact = await calculateSmartRouteV2PriceImpact(accountProvider, actions);
   for (var i in actions) {
     let action = actions[i];
     action.overallPriceImpact = overallPriceImpact;
@@ -1693,7 +1696,7 @@ export async function getSmartRouteSwapActions(
   return actions;
 }
 
-async function calculateSmartRouteV2PriceImpact(tokenMap, actions) {
+async function calculateSmartRouteV2PriceImpact(accountProvider, actions) {
   // the goal is to take a weighted average of the price impact per route, treating each one at a time.
   // for single hop (parallel swaps), the price impact is calculated as before.
   // for double-hop, the market price, P, is determined using reserves of tokens in each pool in the route.
@@ -1737,10 +1740,11 @@ async function calculateSmartRouteV2PriceImpact(tokenMap, actions) {
   for (var i in routes) {
     let route = routes[i];
     let nodeRoute = nodeRoutes[i];
-    const tokens = nodeRoute.map((t) => tokenMap.get(t))
-    // let tokens = await Promise.all(
-    //   nodeRoute.map(async (t) => await ftGetTokenMetadata(provider, t))
-    // );
+    const tokens = []
+    for (const token of nodeRoute) {
+      tokens.push(await accountProvider.getTokenMetadata(token))
+    }
+
     let weight = weights[i];
     if (route.length == 1) {
       let num = new Big(route[0].reserves[nodeRoute[0]]).div(
@@ -2249,7 +2253,7 @@ function getGraphFromPoolList(poolList) {
 }
 
 export async function stableSmart(
-  tokenMap,
+  accountProvider,
   pools,
   inputToken,
   outputToken,
@@ -2257,7 +2261,7 @@ export async function stableSmart(
   slippageTolerance
 ) {
   let smartRouteActions = await getSmartRouteSwapActions(
-    tokenMap,
+    accountProvider,
     pools,
     inputToken,
     outputToken,

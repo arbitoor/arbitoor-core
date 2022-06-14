@@ -1,3 +1,4 @@
+import { TokenInfo } from '@tonic-foundation/token-list'
 import { CodeResult, Provider } from 'near-workspaces'
 import { JUMBO, REF } from './constants'
 import { FTStorageBalance } from './ft-contract'
@@ -15,6 +16,12 @@ export interface AccountProvider {
   getRefPools(): FormattedPool[]
 
   getJumboPools(): FormattedPool[]
+
+  /**
+   * Return token metadata. Fallback to RPC call if it's not stored in the token list.
+   * @param token Token address
+   */
+  getTokenMetadata(token: string): Promise<TokenInfo | undefined>
 }
 
 /**
@@ -30,11 +37,14 @@ export class InMemoryProvider implements AccountProvider {
   private refPools: FormattedPool[]
   private jumboPools: FormattedPool[]
 
-  constructor (provider: Provider) {
+  private tokenMap: Map<string, TokenInfo>
+
+  constructor (provider: Provider, tokenMap: Map<string, TokenInfo>) {
     this.provider = provider
     this.tokenStorageCache = new Map()
     this.refPools = []
     this.jumboPools = []
+    this.tokenMap = tokenMap
   }
 
   async fetchPools () {
@@ -91,5 +101,22 @@ export class InMemoryProvider implements AccountProvider {
     accountId: string
   ): FTStorageBalance | undefined {
     return this.tokenStorageCache.get([tokenId, accountId])
+  }
+
+  async getTokenMetadata(token: string): Promise<TokenInfo | undefined> {
+    const metadata = this.tokenMap.get(token)
+    if (metadata) {
+      return metadata
+    }
+
+    const fetchedMetadata = await this.provider.query<CodeResult>({
+      request_type: 'call_function',
+      account_id: token,
+      method_name: 'token_metadata',
+      args_base64: '',
+      finality: 'optimistic'
+    }).then((res) => JSON.parse(Buffer.from(res.result).toString())) as TokenInfo | undefined
+
+    return fetchedMetadata
   }
 }

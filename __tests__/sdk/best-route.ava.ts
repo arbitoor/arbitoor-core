@@ -14,19 +14,18 @@ test('best route', async () => {
     return map
   }, new Map<string, TokenInfo>())
 
-  const inMemoryProvider = new InMemoryProvider(MainnetRpc)
+  const inMemoryProvider = new InMemoryProvider(MainnetRpc, tokenMap)
 
   const comet = new Comet({
     provider: MainnetRpc,
     accountProvider: inMemoryProvider,
-    tokenMap,
     user,
     routeCacheDuration: 1000
   })
 
-  const inputToken = 'a0b86991c6218b36c1d19d4a2e9eb0ce3606eb48.factory.bridge.near'
+  const inputToken = 'wrap.near'
   const outputToken = 'dac17f958d2ee523a2206206994597c13d831ec7.factory.bridge.near'
-  const inputAmount = '1000000'
+  const inputAmount = '100000000000000000000000000'
   const slippageTolerance = 5
 
   // Poll for pools and storage. If storage is set, then storage polling can be stopped.

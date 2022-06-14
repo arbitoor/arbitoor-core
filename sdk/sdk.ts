@@ -7,6 +7,14 @@ import { percentLess, toReadableNumber, scientificNotationToString, toNonDivisib
 import { getExpectedOutputFromActions, stableSmart } from './smartRouteLogic.js'
 import { EstimateSwapView, Pool, PoolMode } from './swap-service'
 import { AccountProvider } from './AccountProvider'
+import Big from 'big.js'
+
+export interface SwapRoute {
+  dex: string;
+  actions: EstimateSwapView[];
+  output: Big;
+  txs: Transaction[];
+}
 
 export interface ComputeRoutes {
   inputToken: string,
@@ -37,12 +45,9 @@ export class Comet {
   // Data is refreshed priodically after this many milliseconds elapse
   routeCacheDuration: number
 
-  tokenMap: Map<string, TokenInfo>
-
-  constructor ({ provider, accountProvider, user, routeCacheDuration, tokenMap }: {
+  constructor ({ provider, accountProvider, user, routeCacheDuration }: {
     provider: Provider,
     accountProvider: AccountProvider,
-    tokenMap: Map<string, TokenInfo>,
     user: string,
     routeCacheDuration: number,
   }) {
@@ -50,7 +55,6 @@ export class Comet {
     this.accountProvider = accountProvider
     this.user = user
     this.routeCacheDuration = routeCacheDuration
-    this.tokenMap = tokenMap
   }
 
   /**
@@ -73,7 +77,7 @@ export class Comet {
     })
   }
 
-  nearInstantSwap ({
+  async nearInstantSwap ({
     exchange,
     tokenIn,
     tokenOut,
@@ -85,8 +89,8 @@ export class Comet {
     const tokenInActions = new Array<FunctionCallAction>()
     const tokenOutActions = new Array<FunctionCallAction>()
 
-    const tokenInDecimals = this.tokenMap.get(tokenIn)!.decimals
-    const tokenOutDecimals = this.tokenMap.get(tokenIn)!.decimals
+    const tokenInDecimals = (await this.accountProvider.getTokenMetadata(tokenIn))!.decimals
+    const tokenOutDecimals = (await this.accountProvider.getTokenMetadata(tokenOut))!.decimals
 
     const registerToken = (tokenId: string) => {
       const tokenRegistered = this.accountProvider.ftGetStorageBalance(tokenId, this.user)
@@ -309,14 +313,14 @@ export class Comet {
     outputToken,
     inputAmount,
     slippageTolerance
-  }: ComputeRoutes) {
+  }: ComputeRoutes): Promise<SwapRoute[]> {
     // Read from cache
     const refPools = this.getPoolsWithEitherToken(REF, inputToken, outputToken)
     const jumboPools = this.getPoolsWithEitherToken(JUMBO, inputToken, outputToken)
 
     // doesn't account for stable pool
     const refActions = await stableSmart(
-      this.tokenMap,
+      this.accountProvider,
       refPools,
       inputToken,
       outputToken,
@@ -325,7 +329,7 @@ export class Comet {
     ) as EstimateSwapView[]
 
     const jumboActions = await stableSmart(
-      this.tokenMap,
+      this.accountProvider,
       jumboPools,
       inputToken,
       outputToken,
@@ -341,7 +345,7 @@ export class Comet {
         outputToken,
         slippageTolerance
       ),
-      txs: this.nearInstantSwap({
+      txs: await this.nearInstantSwap({
         exchange: REF,
         tokenIn: inputToken,
         tokenOut: outputToken,
@@ -357,7 +361,7 @@ export class Comet {
         outputToken,
         slippageTolerance
       ),
-      txs: this.nearInstantSwap({
+      txs: await this.nearInstantSwap({
         exchange: JUMBO,
         tokenIn: inputToken,
         tokenOut: outputToken,
@@ -369,9 +373,4 @@ export class Comet {
       (a, b) => { return Number(a.output.gte(b.output)) }
     )
   }
-}
-
-
-export interface SwapRoute {
-  output: number,
 }
