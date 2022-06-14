@@ -54,7 +54,9 @@ export class InMemoryProvider implements AccountProvider {
       ...await getPools(this.provider, REF, 1000, 500),
       // stable pool 1910 omitted
       ...await getPools(this.provider, REF, 1500, 410),
-      ...await getPools(this.provider, REF, 1911, 500)
+      ...await getPools(this.provider, REF, 1911, 500),
+      ...await getPools(this.provider, REF, 2411, 500),
+      ...await getPools(this.provider, REF, 2911, 500)
     ]
 
     this.jumboPools = [
@@ -103,7 +105,7 @@ export class InMemoryProvider implements AccountProvider {
     return this.tokenStorageCache.get([tokenId, accountId])
   }
 
-  async getTokenMetadata(token: string): Promise<TokenInfo | undefined> {
+  async getTokenMetadata (token: string): Promise<TokenInfo | undefined> {
     const metadata = this.tokenMap.get(token)
     if (metadata) {
       return metadata

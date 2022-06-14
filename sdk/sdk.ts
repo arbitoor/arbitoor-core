@@ -1,6 +1,6 @@
 import { Provider } from 'near-api-js/lib/providers'
 import { FunctionCallAction, Transaction } from '@near-wallet-selector/core'
-import {TokenInfo } from '@tonic-foundation/token-list'
+import { TokenInfo } from '@tonic-foundation/token-list'
 import { JUMBO, REF, STORAGE_TO_REGISTER_WITH_MFT } from './constants'
 import { round } from './ft-contract'
 import { percentLess, toReadableNumber, scientificNotationToString, toNonDivisibleNumber } from './numbers'
@@ -351,7 +351,7 @@ export class Comet {
         tokenOut: outputToken,
         amountIn: inputAmount,
         swapsToDo: refActions,
-        slippageTolerance,
+        slippageTolerance
       })
     }, {
       dex: JUMBO,
@@ -367,7 +367,7 @@ export class Comet {
         tokenOut: outputToken,
         amountIn: inputAmount,
         swapsToDo: jumboActions,
-        slippageTolerance,
+        slippageTolerance
       })
     }].sort(
       (a, b) => { return Number(a.output.gte(b.output)) }
