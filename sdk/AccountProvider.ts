@@ -114,7 +114,7 @@ export class InMemoryProvider implements AccountProvider {
     const fetchedMetadata = await this.provider.query<CodeResult>({
       request_type: 'call_function',
       account_id: token,
-      method_name: 'token_metadata',
+      method_name: 'ft_metadata',
       args_base64: '',
       finality: 'optimistic'
     }).then((res) => JSON.parse(Buffer.from(res.result).toString())) as TokenInfo | undefined
