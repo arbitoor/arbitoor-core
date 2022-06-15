@@ -369,8 +369,14 @@ export class Comet {
         swapsToDo: jumboActions,
         slippageTolerance
       })
-    }].sort(
-      (a, b) => { return Number(a.output.gte(b.output)) }
-    )
+    }].sort((a, b) => {
+      if (a.output.gt(b.output)) {
+        return -1;
+      }
+      if (a.output.lt(b.output)) {
+        return 1;
+      }
+      return 0;
+    })
   }
 }
