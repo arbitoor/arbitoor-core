@@ -32,7 +32,8 @@ export class InMemoryProvider implements AccountProvider {
   private provider: Provider
 
   // Whether an address is registered on the token contract
-  private tokenStorageCache: Map<[string, string], FTStorageBalance>
+  // private tokenStorageCache: Map<[string, string], FTStorageBalance>
+  private tokenStorageCache: Map<string, Map<string, FTStorageBalance>>
 
   private refPools: FormattedPool[]
   private jumboPools: FormattedPool[]
@@ -86,7 +87,12 @@ export class InMemoryProvider implements AccountProvider {
     }).then((res) => JSON.parse(Buffer.from(res.result).toString())) as FTStorageBalance | undefined
 
     if (res) {
-      this.tokenStorageCache.set([token, accountId], res)
+      const userTokens = this.tokenStorageCache.get(accountId)
+      if (userTokens) {
+        userTokens.set(token, res)
+      } else {
+        this.tokenStorageCache.set(accountId, new Map([[token, res]]))
+      }
     }
   }
 
@@ -102,7 +108,7 @@ export class InMemoryProvider implements AccountProvider {
     tokenId: string,
     accountId: string
   ): FTStorageBalance | undefined {
-    return this.tokenStorageCache.get([tokenId, accountId])
+    return this.tokenStorageCache.get(accountId)?.get(tokenId)
   }
 
   async getTokenMetadata (token: string): Promise<TokenInfo | undefined> {
