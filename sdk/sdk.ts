@@ -95,7 +95,7 @@ export class Comet {
     const registerToken = (tokenId: string) => {
       const tokenRegistered = this.accountProvider.ftGetStorageBalance(tokenId, this.user)
 
-      if (tokenRegistered === null) {
+      if (!tokenRegistered) {
         tokenOutActions.push({
           type: 'FunctionCall',
           params: {
