@@ -1,40 +1,12 @@
 import BigNumber from 'bignumber.js'
 import { CodeResult, Provider } from 'near-workspaces'
-import { REF } from './constants'
+import { REF, STABLE_POOL_ID } from './constants'
 import { TokenMetadata } from './ft-contract'
 import { toReadableNumber, scientificNotationToString, toPrecision } from './numbers'
-import { getSwappedAmount, StablePool, STABLE_LP_TOKEN_DECIMALS, STABLE_POOL_ID } from './stable-swap'
-import { Pool } from './swap-service'
+import { getSwappedAmount, StablePool, StablePoolResponse, STABLE_LP_TOKEN_DECIMALS } from './stable-swap'
+import { FormattedPool, Pool, RefPool } from './swap-service'
 
 const FEE_DIVISOR = 10000
-
-// Type returned from smart contract
-export interface RefPool {
-  pool_kind: string,
-  token_account_ids: string[],
-  amounts: string[],
-  total_fee: number,
-  shares_total_supply: string,
-  amp: number,
-}
-
-// Type required for math
-export interface FormattedPool {
-  id: number;
-  token1Id: string;
-  token2Id: string;
-  token1Supply: string;
-  token2Supply: string;
-  fee: number;
-  shares: string;
-  update_time: number;
-  token0_price: string;
-  Dex: string;
-  amounts: string[];
-  reserves: {
-    [key: string]: string,
-  }
-}
 
 const getStablePoolEstimate = ({
   tokenIn,
@@ -123,8 +95,17 @@ export async function getPool (provider: Provider, poolId: number) {
   return JSON.parse(Buffer.from(res.result).toString())
 }
 
-export function getStablePool (provider: Provider) {
-  return getPool(provider, STABLE_POOL_ID)
+export async function getStablePool (provider: Provider) {
+  // TODO filter out illiquid pools. There are only 20 liquid pools out of 3k total
+  const pool = await provider.query<CodeResult>({
+    request_type: 'call_function',
+    account_id: REF,
+    method_name: 'get_pool',
+    args_base64: Buffer.from(JSON.stringify({ pool_id: STABLE_POOL_ID })).toString('base64'),
+    finality: 'optimistic'
+  }).then((res) => JSON.parse(Buffer.from(res.result).toString())) as StablePoolResponse
+
+  return pool
 }
 
 /**
@@ -148,16 +129,10 @@ export async function getPools (provider: Provider, exchange: string, index: num
   const formattedPools = pools.map(refPool => {
     const formattedPool = {
       id: index,
-      token1Id: refPool.token_account_ids[0]!,
-      token2Id: refPool.token_account_ids[1]!,
-      token1Supply: refPool.amounts[0]!,
-      token2Supply: refPool.amounts[1]!,
-      fee: refPool.total_fee,
-      shares: refPool.shares_total_supply,
-      update_time: 100,
-      token0_price: '0',
-      Dex: exchange,
+      token_account_ids: refPool.token_account_ids,
       amounts: refPool.amounts,
+      total_fee: refPool.total_fee,
+      // retain for now
       reserves: {
         [refPool.token_account_ids[0]!]: refPool.amounts[0]!,
         [refPool.token_account_ids[1]!]: refPool.amounts[1]!

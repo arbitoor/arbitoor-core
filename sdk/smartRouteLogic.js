@@ -63,14 +63,14 @@ function getEpsilonForRoute(route, path) {
   if (route.length == 1) {
     // Single Hop case
     let p = route[0];
-    let gamma = new Big(10000).minus(new Big(p.fee)).div(new Big(10000));
+    let gamma = new Big(10000).minus(new Big(p.total_fee)).div(new Big(10000));
     var epsilon = Big(gamma);
   } else if (route.length == 2) {
     //Double Hop Case
     let p1 = route[0];
     let p2 = route[1];
-    let gamma1 = new Big(10000).minus(new Big(p1.fee)).div(new Big(10000));
-    let gamma2 = new Big(10000).minus(new Big(p2.fee)).div(Big(10000));
+    let gamma1 = new Big(10000).minus(new Big(p1.total_fee)).div(new Big(10000));
+    let gamma2 = new Big(10000).minus(new Big(p2.total_fee)).div(Big(10000));
     var epsilon = new Big(p2.reserves[path[1]])
       .times(new Big(gamma1))
       .plus(new Big(p1.reserves[path[1]]).times(gamma1).times(gamma2));
@@ -87,11 +87,10 @@ function getAlphaForRoute(route, path) {
     let p = route[0];
     let inputToken = path[0];
     let outputToken = path[1];
-    let gamma = new Big(10000).minus(new Big(p.fee)).div(new Big(10000));
-    let key1 = p.token1Id;
-    let key2 = p.token2Id;
-    let val1 = p.token1Supply;
-    let val2 = p.token2Supply;
+    let gamma = new Big(10000).minus(new Big(p.total_fee)).div(new Big(10000));
+    let [key1, key2] = p.token_account_ids;
+    let val1 = p.amounts[0];
+    let val2 = p.amounts[1];
     p['reserves'] = { [key1]: val1, [key2]: val2 };
     var alpha = new Big(p.reserves[inputToken]).times(
       new Big(p.reserves[outputToken]).times(new Big(gamma))
@@ -100,21 +99,23 @@ function getAlphaForRoute(route, path) {
     //console.log('double hop')
     let p1 = route[0];
     let p2 = route[1];
-    let key11 = p1.token1Id;
-    let key12 = p1.token2Id;
-    let val11 = p1.token1Supply;
-    let val12 = p1.token2Supply;
+    let [key11, key12] = p1.token_account_ids;
+    // let key11 = p1.token1Id;
+    // let key12 = p1.token2Id;
+    let val11 = p1.amounts[0];
+    let val12 = p1.amounts[1];
     p1['reserves'] = { [key11]: val11, [key12]: val12 };
-    let key21 = p2.token1Id;
-    let key22 = p2.token2Id;
-    let val21 = p2.token1Supply;
-    let val22 = p2.token2Supply;
+    // let key21 = p2.token1Id;
+    // let key22 = p2.token2Id;
+    let [key21, key22] = p2.token_account_ids;
+    let val21 = p2.amounts[0];
+    let val22 = p2.amounts[1];
     p2['reserves'] = { [key21]: val21, [key22]: val22 };
     let inputToken = path[0];
     let middleToken = path[1];
     let outputToken = path[2];
-    let gamma1 = new Big(10000).minus(Big(p1.fee)).div(new Big(10000));
-    let gamma2 = new Big(10000).minus(new Big(p2.fee)).div(new Big(10000));
+    let gamma1 = new Big(10000).minus(Big(p1.total_fee)).div(new Big(10000));
+    let gamma2 = new Big(10000).minus(new Big(p2.total_fee)).div(new Big(10000));
     let alpha1 = new Big(p1.reserves[inputToken])
       .times(new Big(p1.reserves[middleToken]))
       .times(gamma1);
@@ -326,22 +327,22 @@ function getRoutesFromPoolChain(poolChains) {
 function getOutputSingleHop(pool, inputToken, outputToken, totalInput) {
   var totalInput = new Big(totalInput);
   // check if pool is forward or backward for inputToken/outputToken cf. token1Id/token2Id
-  if (inputToken === pool.token1Id && outputToken === pool.token2Id) {
+  if (inputToken === pool.token_account_ids[0] && outputToken === pool.token_account_ids[1]) {
     // forward Pool
     var reserves = {
-      [inputToken]: new Big(pool.token1Supply),
-      [outputToken]: new Big(pool.token2Supply),
+      [inputToken]: new Big(pool.amounts[0]),
+      [outputToken]: new Big(pool.amounts[1]),
     };
-  } else if (inputToken === pool.token2Id && outputToken === pool.token1Id) {
+  } else if (inputToken === pool.token_account_ids[1] && outputToken === pool.token_account_ids[0]) {
     // reverse pool
     var reserves = {
-      [outputToken]: new Big(pool.token1Supply),
-      [inputToken]: new Big(pool.token2Supply),
+      [outputToken]: new Big(pool.amounts[0]),
+      [inputToken]: new Big(pool.amounts[1]),
     };
   } else {
     return new Big(0);
   }
-  let gamma = new Big(10000).minus(new Big(pool.fee)).div(new Big(10000));
+  let gamma = new Big(10000).minus(new Big(pool.total_fee)).div(new Big(10000));
   // console.log(totalInput)
   // console.log(gamma)
   // console.log(reserves)
@@ -360,36 +361,36 @@ function getOutputDoubleHop(
   var totalInput = new Big(totalInput);
   for (var poolIndex in pools) {
     let p = pools[poolIndex];
-    p['gamma'] = new Big(10000).minus(new Big(p.fee)).div(new Big(10000));
+    p['gamma'] = new Big(10000).minus(new Big(p.total_fee)).div(new Big(10000));
   }
   let p1 = pools[0];
   let p2 = pools[1];
 
-  if (inputToken === p1.token1Id && middleToken === p1.token2Id) {
+  if (inputToken === p1.token_account_ids[0] && middleToken === p1.token_account_ids[1]) {
     // forward Pool
     p1['reserves'] = {
-      [inputToken]: new Big(p1.token1Supply),
-      [middleToken]: new Big(p1.token2Supply),
+      [inputToken]: new Big(p1.amounts[0]),
+      [middleToken]: new Big(p1.amounts[1]),
     };
-  } else if (middleToken === p1.token1Id && inputToken === p1.token2Id) {
+  } else if (middleToken === p1.token_account_ids[0] && inputToken === p1.token_account_ids[1]) {
     //reverse pool
     p1['reserves'] = {
-      [middleToken]: new Big(p1.token1Supply),
-      [inputToken]: new Big(p1.token2Supply),
+      [middleToken]: new Big(p1.amounts[0]),
+      [inputToken]: new Big(p1.amounts[1]),
     };
   }
 
-  if (middleToken === p2.token1Id && outputToken === p2.token2Id) {
+  if (middleToken === p2.token_account_ids[0] && outputToken === p2.token_account_ids[1]) {
     // forward Pool
     p2['reserves'] = {
-      [middleToken]: new Big(p2.token1Supply),
-      [outputToken]: new Big(p2.token2Supply),
+      [middleToken]: new Big(p2.amounts[0]),
+      [outputToken]: new Big(p2.amounts[1]),
     };
-  } else if (outputToken === p2.token1Id && middleToken === p2.token2Id) {
+  } else if (outputToken === p2.token_account_ids[0] && middleToken === p2.token_account_ids[1]) {
     //reverse pool
     p2['reserves'] = {
-      [outputToken]: new Big(p2.token1Supply),
-      [middleToken]: new Big(p2.token2Supply),
+      [outputToken]: new Big(p2.amounts[0]),
+      [middleToken]: new Big(p2.amounts[1]),
     };
   }
 
@@ -843,7 +844,7 @@ function getHopActionsFromRoutes(routes, nodeRoutes, allocations) {
           inputToken: nodeRoute[0],
           outputToken: nodeRoute[1],
           nodeRoute: nodeRoute,
-          route: route,
+          route,
           allRoutes: routes,
           allNodeRoutes: nodeRoutes,
           totalInputAmount: totalInput,
@@ -868,7 +869,7 @@ function getHopActionsFromRoutes(routes, nodeRoutes, allocations) {
           inputToken: nodeRoute[1],
           outputToken: nodeRoute[2],
           nodeRoute: nodeRoute,
-          route: route,
+          route,
           allRoutes: routes,
           allNodeRoutes: nodeRoutes,
           totalInputAmount: totalInput,
@@ -894,100 +895,6 @@ function getActionListFromRoutesAndAllocations(
 ) {
   // REPLACE THE CODE BELOW WITH THE FUNCTION HERE.
   return getHopActionsFromRoutes(routes, nodeRoutes, allocations);
-  var actions = [];
-  var all_hops = [];
-  let firstHops = getHopsFromRoutes(routes, nodeRoutes, allocations);
-
-  firstHops = firstHops.filter((hop) => new Big(hop.allocation).gt(new Big(0)));
-  all_hops.push(...firstHops);
-  let distilledFirstHops = distillHopsByPool(firstHops);
-  let firstHopActions = getDistilledHopActions(
-    distilledFirstHops,
-    slippageTolerance
-  );
-  actions.push(...firstHopActions);
-  let middleTokenTotals =
-    getMiddleTokenTotalsFromFirstHopActions(firstHopActions);
-  // console.log('first hop actions are...');
-  // console.log(firstHopActions);
-  let middleTokens = Object.keys(middleTokenTotals);
-  // console.log('middle token totals are...');
-  // console.log(middleTokenTotals);
-  // console.log('middle tokens are...');
-  // console.log(middleTokens);
-  for (var tokenIndex in middleTokens) {
-    var secondHops = [];
-    let middleToken = middleTokens[tokenIndex];
-    // console.log('current middle token is ');
-    // console.log(middleToken);
-    let middleTokenTotal = middleTokenTotals[middleToken];
-    // console.log('current middle token total is...');
-    // console.log(middleTokenTotal);
-    let middleTokenRoutesWithAllocations =
-      getRoutesAndAllocationsForMiddleToken(
-        routes,
-        nodeRoutes,
-        allocations,
-        middleToken,
-        middleTokenTotal
-      );
-    // console.log('current middle tokens routes with allocations are...');
-    // console.log(middleTokenRoutesWithAllocations);
-    let middleTokenRoutes = middleTokenRoutesWithAllocations.routes;
-    let middleTokenAllocations = middleTokenRoutesWithAllocations.allocations;
-    let middleTokenNodeRoutes = middleTokenRoutesWithAllocations.nodeRoutes;
-    // console.log('middle token routes are...');
-    // console.log(middleTokenRoutes);
-    // console.log('middle token allocations are...');
-    // console.log(middleTokenAllocations);
-    // console.log('middle token node routes are...');
-    // console.log(middleTokenNodeRoutes);
-    secondHops.push(
-      ...getHopsFromRoutes(
-        middleTokenRoutes,
-        middleTokenNodeRoutes,
-        middleTokenAllocations
-      )
-    );
-    // console.log('CURRENT SECOND HOPS', secondHops);
-    // console.log(secondHops.length);
-    // console.log(secondHops.map((hop) => hop.allocation));
-    // console.log('filter out zero allocation 2nd hops:');
-    secondHops = secondHops.filter((hop) =>
-      new Big(hop.allocation).gt(new Big(0))
-    );
-    // console.log(secondHops);
-    all_hops.push(...secondHops);
-    // console.log('second hops are currently...');
-    // console.log(secondHops);
-    let distilledSecondHopsForToken = distillHopsByPool(secondHops);
-    // console.log('distilled second hops are...');
-    let secondHopActionsForToken = getDistilledHopActions(
-      distilledSecondHopsForToken,
-      slippageTolerance
-    );
-    // console.log(secondHopActionsForToken);
-    actions.push(...secondHopActionsForToken);
-  }
-
-  //TODO: NEED TO RUN INTEGER ROUNDING FUNCTION ON MIDDLE TOKEN ALLOCATIONS
-
-  // TODO: check the node routes. for double-hop cases, find the hop action for each hop.
-  // For now, we are assuming no parallel swaps if there is a double-hop.
-
-  // Possible cases:
-  //  (1) 1 single-hop.
-  //  (2) Parallel single-hop ?
-  //  (3) 1 double-hop
-  //  (4) 2 double-hops
-
-  // We only have to worry about re-ordering the actions for cases (3) and (4).
-
-  let orderedHops = orderHops(all_hops, routes, nodeRoutes, allocations);
-
-  // console.log('ALL HOPS', all_hops);
-  return orderedHops;
-  // return actions;
 }
 
 function orderHops(hops, routes, nodeRoutes, allocations) {
@@ -1118,98 +1025,6 @@ function orderHops(hops, routes, nodeRoutes, allocations) {
 
   return hops;
 }
-
-// function getActionListFromRoutesAndAllocationsORIG(
-//   routes,
-//   nodeRoutes,
-//   allocations,
-//   slippageTolerance
-// ) {
-//   let actions = [];
-//   for (var i in routes) {
-//     let route = routes[i];
-//     let nodeRoute = nodeRoutes[i];
-//     let allocation = new Big(allocations[i]);
-//     if (allocation.eq(new Big(0))) {
-//       continue;
-//     }
-//     if (!route.length) {
-//       route = [route];
-//     }
-//     if (route.length === 1) {
-//       //single hop. only one action.
-//       let pool = route[0];
-//       let poolId = pool.id;
-//       let inputToken = nodeRoute[0];
-//       let outputToken = nodeRoute[1];
-//       let expectedAmountOut = getOutputSingleHop(
-//         pool,
-//         inputToken,
-//         outputToken,
-//         allocation
-//       );
-//       let minimumAmountOut = expectedAmountOut
-//         .times(new Big(1).minus(new Big(slippageTolerance).div(100)))
-//         .round()
-//         .toString(); //Here, assume slippage tolerance is a percentage. So 1% would be 1.0
-//       let action = {
-//         pool_id: poolId,
-//         token_in: inputToken,
-//         token_out: outputToken,
-//         amount_in: allocation.round().toString(),
-//         min_amount_out: minimumAmountOut.toString(),
-//       };
-//       actions.push(action);
-//     } else if (route.length === 2) {
-//       // double hop. two actions.
-//       let pool1 = route[0];
-//       let pool2 = route[1];
-//       let pool1Id = pool1.id;
-//       let pool2Id = pool2.id;
-//       let inputToken = nodeRoute[0];
-//       let middleToken = nodeRoute[1];
-//       let outputToken = nodeRoute[2];
-//       let expectedAmountOutFirstHop = getOutputSingleHop(
-//         pool1,
-//         inputToken,
-//         middleToken,
-//         allocation
-//       );
-//       let minimumAmountOutFirstHop = expectedAmountOutFirstHop
-//         .times(new Big(1).minus(new Big(slippageTolerance).div(100)))
-//         .round()
-//         .toString(); //Here, assume slippage tolerance is a percentage. So 1% would be 1.0
-
-//       let action1 = {
-//         pool_id: pool1Id,
-//         token_in: inputToken,
-//         token_out: middleToken,
-//         amount_in: allocation.round().toString(),
-//         min_amount_out: minimumAmountOutFirstHop,
-//       };
-//       let expectedFinalAmountOut = getOutputSingleHop(
-//         pool2,
-//         middleToken,
-//         outputToken,
-//         minimumAmountOutFirstHop
-//       );
-//       let minimumAMountOutSecondHop = expectedFinalAmountOut
-//         .times(new Big(1).minus(new Big(slippageTolerance).div(100)))
-//         .round()
-//         .toString();
-//       let action2 = {
-//         pool_id: pool2Id,
-//         token_in: middleToken,
-//         token_out: outputToken,
-//         amount_in: minimumAmountOutFirstHop,
-//         min_amount_out: minimumAMountOutSecondHop,
-//       };
-//       actions.push(action1);
-//       actions.push(action2);
-//     }
-//   }
-//   return actions;
-// }
 
 function* range(start, end) {
   for (; start <= end; ++start) {
@@ -1468,11 +1283,6 @@ export async function getSmartRouteSwapActions(
     return [];
   }
 
-  // check the top numberOfRoutesLimit
-  // console.log('initial allocations are...');
-  // console.log(allocations.map((a) => a.toString()));
-  // console.log('fixed allocations are...');
-  // console.log(allocations.map((a) => new Big(a).toFixed()));
   //SORT BY ALLOCATIONS
   let allSortedIndices = argsort(allocations.map((a) => new Big(a)));
   if (bestRoutesAreParallel) {
@@ -1480,8 +1290,6 @@ export async function getSmartRouteSwapActions(
   }
   let sortedIndices = allSortedIndices.slice(0, numberOfRoutesLimit);
 
-  // console.log('sorted Indices are');
-  // console.log(sortedIndices);
   var filteredRoutes = [];
   var filteredNodeRoutes = [];
   for (var i in sortedIndices) {
@@ -1522,16 +1330,6 @@ export async function getSmartRouteSwapActions(
     }
   }
 
-  // NOTE -- this is a much simpler solution than that below. Instead of choosing the next best second route that doesn't share a
-  // pool with the first route, we could just use the first route and allocate all inputs to it.
-  // but, for larger transactions, it would be better to have option of two independent routes to spread out slippage.
-
-  // if (sharedRoute) {
-  //   filteredRoutes = [filteredRoutes[0]];
-  //   filteredNodeRoutes = [filteredNodeRoutes[0]];
-  //   // TODO -- later can add in a second route that doesn't share a pool with first.
-  // }
-
   // We're going to find the next-highest allocation route that doesn't share a pool with the first route.
   if (sharedRoute) {
     let allFilteredRoutes = [];
@@ -1541,8 +1339,7 @@ export async function getSmartRouteSwapActions(
       allFilteredNodeRoutes.push(nodeRoutes[allSortedIndices[i]]);
     }
     let firstRoute = allFilteredRoutes[0];
-    // console.log('first route is...');
-    // console.log(firstRoute);
+
     let firstRoutePoolIds = firstRoute.map((pool) => pool.id);
     for (var i in allFilteredRoutes) {
       if (!allFilteredRoutes[i].length) {
@@ -1580,18 +1377,8 @@ export async function getSmartRouteSwapActions(
         break;
       }
     }
-    // console.log('new filteredRoutes are ...');
-    // console.log(filteredRoutes);
-    // console.log('new filtered Node routes are...');
-    // console.log(filteredNodeRoutes);
   }
 
-  // let filteredAllocations_check = getBestOptInput(
-  //   filteredRoutes,
-  //   filteredNodeRoutes,
-  //   totalInput
-  // );
-  // let filteredAllocationsAndOutputs = getOptOutputVecRefined(filteredRoutes, filteredNodeRoutes, totalInput);
   let filteredAllocationsAndOutputs = getOptOutputVec(
     filteredRoutes,
     filteredNodeRoutes,
@@ -1650,17 +1437,15 @@ export async function getSmartRouteSwapActions(
     actions[i] = {
       estimate: decimalEstimate,
       pool: {
-        fee: hops[i].pool.fee,
-        gamma_bps: new Big(10000).minus(new Big(hops[i].pool.fee)), //.div(new Big(10000)), //hops[i].pool.gamma, //new Big(10000).minus(new Big(hops[i].pool.fee)).div(new Big(10000));
+        fee: hops[i].pool.total_fee,
+        gamma_bps: new Big(10000).minus(new Big(hops[i].pool.total_fee)), //.div(new Big(10000)), //hops[i].pool.gamma, //new Big(10000).minus(new Big(hops[i].pool.total_fee)).div(new Big(10000));
         id: hops[i].pool.id,
         partialAmountIn: new Big(hops[i].allocation).round().toString(),
         supplies: {
-          [hops[i].pool.token1Id]: hops[i].pool.token1Supply,
-          [hops[i].pool.token2Id]: hops[i].pool.token2Supply,
+          [hops[i].pool.token_account_ids[0]]: hops[i].pool.amounts[0],
+          [hops[i].pool.token_account_ids[1]]: hops[i].pool.amounts[1],
         },
-        token0_ref_price: hops[i].pool.token0_price,
-        tokenIds: [hops[i].pool.token1Id, hops[i].pool.token2Id],
-        Dex: hops[i].pool.Dex,
+        tokenIds: [hops[i].pool.token_account_ids[0], hops[i].pool.token_account_ids[1]],
       },
       status: status,
       outputToken: hops[i].outputToken,
@@ -1676,8 +1461,6 @@ export async function getSmartRouteSwapActions(
       routeOutputToken: outputToken,
       overallPriceImpact: '0',
     };
-    // console.log('INPUT TOKEN IS...');
-    // console.log(hops[i].inputToken);
     actions[i].pool.x = actions[i].pool.supplies[hops[i].inputToken];
     actions[i].pool.y = actions[i].pool.supplies[hops[i].outputToken];
   }
@@ -1809,10 +1592,7 @@ function argsort(arr) {
 function getPoolsByToken1ORToken2(pools, token1, token2) {
   let filteredPools = pools.filter(
     (item) =>
-      item.token1Id === token1 ||
-      item.token2Id === token1 ||
-      item.token1Id === token2 ||
-      item.token2Id === token2
+    item.token_account_ids.includes(token1) || item.token_account_ids.includes(token2)
   );
   return filteredPools;
 }
@@ -1825,12 +1605,12 @@ function getPoolsByToken1ANDToken2(
 ) {
   let filteredPools = pools.filter(
     (item) =>
-      (item.token1Id === token1 && item.token2Id === token2) ||
-      (item.token1Id === token2 && item.token2Id === token1)
+      (item.token_account_ids[0] === token1 && item.token_account_ids[1] === token2) ||
+      (item.token_account_ids[0] === token2 && item.token_account_ids[1] === token1)
   );
   if (cullZeroLiquidityPools) {
     filteredPools = filteredPools.filter(
-      (item) => item.token1Supply != '0' && item.token2Supply != '0'
+      (item) => item.amounts[0] != '0' && item.amounts[1] != '0'
     );
   }
   return filteredPools;
@@ -1840,7 +1620,7 @@ function getLiqudityOfPoolsFromList(pools) {
   let liquidities = [];
   for (var poolInd in pools) {
     let pool = pools[poolInd];
-    pool.amounts = [pool.token1Supply, pool.token2Supply];
+    pool.amounts = [pool.amounts[0], pool.amounts[1]];
     let poolBigAmounts = pool.amounts.map((item) => new Big(item));
     let liquidity = poolBigAmounts[0].times(poolBigAmounts[1]);
     liquidities.push(liquidity);
@@ -2244,9 +2024,9 @@ async function getAllPathsBelowLengthN(g, source, target, N, limit = 100) {
 
 function getGraphFromPoolList(poolList) {
   let pools = poolList.filter(
-    (item) => item.token1Supply != '0' && item.token2Supply != '0'
+    (item) => item.amounts[0] != '0' && item.amounts[1] != '0'
   );
-  let transitions = pools.map((item) => [item.token1Id, item.token2Id]);
+  let transitions = pools.map((item) => [item.token_account_ids[0], item.token_account_ids[1]]);
   let g = {};
   addEdges(g, transitions);
   return g;
@@ -2304,32 +2084,7 @@ export function getExpectedOutputFromActions(
       expectedOutput = expectedOutput.plus(curRoute[0].estimate);
 
     } else {
-      if (
-        curRoute.every((r) => r.pool.Dex !== 'tri') ||
-        curRoute.every((r) => r.pool.Dex === 'tri')
-      ) {
-        expectedOutput = expectedOutput.plus(curRoute[1].estimate);
-      }
-
-      else {
-        const secondHopAmountIn = percentLess(
-          slippageTolerance,
-          curRoute[0].estimate
-        );
-
-        // fetch here
-        const secondEstimateOut = getPoolEstimate({
-          tokenIn: curRoute[1].tokens[1],
-          tokenOut: curRoute[1].tokens[2],
-          amountIn: toNonDivisibleNumber(
-            curRoute[1].tokens[1].decimals,
-            secondHopAmountIn
-          ),
-          Pool: curRoute[1].pool,
-        });
-
-        expectedOutput = expectedOutput.plus(secondEstimateOut.estimate);
-      }
+      expectedOutput = expectedOutput.plus(curRoute[1].estimate);
     }
   }
   return expectedOutput;
@@ -2342,13 +2097,13 @@ function getFeeForRoute(route) {
   if (route.length == 1) {
     // Single Hop case
     let p = route[0];
-    return p.fee;
+    return p.total_fee;
   } else if (route.length == 2) {
     //Double Hop Case
     let p1 = route[0];
     let p2 = route[1];
-    let fee1 = p1.fee;
-    let fee2 = p2.fee;
+    let fee1 = p1.total_fee;
+    let fee2 = p2.total_fee;
     return fee1 + fee2;
   }
 }

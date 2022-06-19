@@ -24,7 +24,7 @@ test('best route', async () => {
   })
 
   const inputToken = 'wrap.near'
-  const outputToken = 'usn'
+  const outputToken = 'dac17f958d2ee523a2206206994597c13d831ec7.factory.bridge.near'
   const inputAmount = '100000000000000000000000000'
   const slippageTolerance = 5
 
@@ -39,5 +39,5 @@ test('best route', async () => {
     inputAmount,
     slippageTolerance
   })
-  console.log('routes', routes.map(route => route.output.toString()))
+  console.log('outputs', routes.map(route => route.output.toString()))
 })

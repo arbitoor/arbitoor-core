@@ -1,5 +1,5 @@
 import * as math from 'mathjs'
-import { EstimateSwapView } from './swap-service'
+import { SwapActions } from './swap-service'
 
 export const convertToPercentDecimal = (percent: number) => {
   return math.divide(percent, 100)
@@ -16,7 +16,7 @@ export const percentLess = (percent: number, num: number | string) => {
 }
 
 export function separateRoutes (
-  actions: EstimateSwapView[],
+  actions: SwapActions[],
   outputToken: string
 ) {
   const res = []

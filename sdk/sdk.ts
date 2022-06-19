@@ -5,13 +5,13 @@ import { JUMBO, REF, STORAGE_TO_REGISTER_WITH_MFT } from './constants'
 import { round } from './ft-contract'
 import { percentLess, toReadableNumber, scientificNotationToString, toNonDivisibleNumber } from './numbers'
 import { getExpectedOutputFromActions, stableSmart } from './smartRouteLogic.js'
-import { EstimateSwapView, Pool, PoolMode } from './swap-service'
+import { SwapActions, PoolMode } from './swap-service'
 import { AccountProvider } from './AccountProvider'
 import Big from 'big.js'
 
 export interface SwapRoute {
   dex: string;
-  actions: EstimateSwapView[];
+  actions: SwapActions[];
   output: Big;
   txs: Transaction[];
 }
@@ -26,7 +26,7 @@ export interface ComputeRoutes {
 export interface SwapOptions {
   exchange: string,
   useNearBalance?: boolean;
-  swapsToDo: EstimateSwapView[];
+  swapsToDo: SwapActions[];
   tokenIn: string;
   tokenOut: string;
   amountIn: string;
@@ -72,8 +72,7 @@ export class Comet {
 
     // filter cached pools
     return pools.filter(pool => {
-      return pool.token1Id === token1 || pool.token1Id === token2 ||
-        pool.token2Id === token1 || pool.token2Id === token2
+      return pool.token_account_ids.includes(token1) || pool.token_account_ids.includes(token2)
     })
   }
 
@@ -326,7 +325,9 @@ export class Comet {
       outputToken,
       inputAmount,
       undefined
-    ) as EstimateSwapView[]
+    ) as SwapActions[]
+
+    // REF hybrid smart algorithm
 
     const jumboActions = await stableSmart(
       this.accountProvider,
@@ -335,7 +336,7 @@ export class Comet {
       outputToken,
       inputAmount,
       undefined
-    ) as EstimateSwapView[]
+    ) as SwapActions[]
 
     return [{
       dex: REF,
@@ -371,12 +372,12 @@ export class Comet {
       })
     }].sort((a, b) => {
       if (a.output.gt(b.output)) {
-        return -1;
+        return -1
       }
       if (a.output.lt(b.output)) {
-        return 1;
+        return 1
       }
-      return 0;
+      return 0
     })
   }
 }

@@ -1,8 +1,9 @@
 import { TokenInfo } from '@tonic-foundation/token-list'
 import { CodeResult, Provider } from 'near-workspaces'
-import { JUMBO, REF } from './constants'
+import { JUMBO, REF, STABLE_POOL_ID } from './constants'
 import { FTStorageBalance } from './ft-contract'
-import { FormattedPool, getPools } from './ref-utils'
+import { getPools, getStablePool } from './ref-utils'
+import { FormattedPool } from './swap-service'
 
 export interface AccountProvider {
   /**
@@ -49,6 +50,9 @@ export class InMemoryProvider implements AccountProvider {
   }
 
   async fetchPools () {
+    const stablePool = await getStablePool(this.provider)
+    console.log('stable pool', stablePool)
+
     this.refPools = [
       ...await getPools(this.provider, REF, 0, 500),
       ...await getPools(this.provider, REF, 500, 500),
@@ -59,6 +63,7 @@ export class InMemoryProvider implements AccountProvider {
       ...await getPools(this.provider, REF, 2411, 500),
       ...await getPools(this.provider, REF, 2911, 500)
     ]
+    // filter out stable pools
 
     this.jumboPools = [
       ...await getPools(this.provider, JUMBO, 0, 500),

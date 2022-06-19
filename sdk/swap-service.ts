@@ -5,18 +5,6 @@ export interface ReservesMap {
   [index: string]: string;
 }
 
-export interface Pool {
-  id: number;
-  tokenIds: string[];
-  supplies: { [key: string]: string };
-  fee: number;
-  shareSupply: string;
-  tvl: number;
-  token0_ref_price: string;
-  partialAmountIn?: string;
-  Dex?: string;
-}
-
 export enum PoolMode {
   PARALLEL = 'parallel swap',
   SMART = 'smart routing',
@@ -24,17 +12,67 @@ export enum PoolMode {
   STABLE = 'stable swap',
 }
 
+// Eliminate redundant pool types
+
+// Type returned from smart contract. It does not hold ID
+export interface RefPool {
+  pool_kind: string,
+  token_account_ids: string[],
+  amounts: string[],
+  total_fee: number,
+  shares_total_supply: string,
+  amp: number,
+}
+
+// Returned from getPools(). Replace it with RefPool
+// Used in cache, which is read by math library
+export interface FormattedPool {
+  id: number;
+  token_account_ids: string[],
+  total_fee: number;
+  amounts: string[];
+  // Redundant, can be derived from token_account_ids and amounts
+  reserves: {
+    [key: string]: string,
+  }
+}
+
+export interface Pool {
+  id: number;
+  tokenIds: string[];
+  supplies: { [key: string]: string };
+  fee: number;
+  shareSupply: string;
+
+  // unknown fields
+  tvl: number;
+  partialAmountIn?: string;
+}
+
+// eliminate. Store stable pools in separate variable
+export interface StablePool {
+  // Read from pool state
+  amounts: string[];
+  total_fee: number;
+  shares_total_supply: string;
+  amp: number;
+  token_account_ids: string[];
+
+  // Derived fields
+  id: number;
+  // LP token decimals?
+  decimals: number[];
+  // ?
+  c_amounts: string[];
+}
+
+// Holds parameters to find best route
 export interface RoutePool {
   amounts: string[];
   fee: number;
   id: number;
   reserves: ReservesMap;
   shares: string;
-  token0_ref_price: string;
-  token1Id: string;
-  token1Supply: string;
-  token2Id: string;
-  token2Supply: string;
   updateTime: number;
   partialAmountIn?: string | number | Big;
   gamma_bps?: Big;
@@ -44,7 +82,7 @@ export interface RoutePool {
   y?: string;
 }
 
-export interface EstimateSwapView {
+export interface SwapActions {
   estimate: string;
   pool: Pool;
   intl?: any;
