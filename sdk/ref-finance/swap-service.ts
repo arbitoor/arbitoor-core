@@ -1,5 +1,5 @@
 import Big from 'big.js'
-import { TokenMetadata } from './ft-contract'
+import { TokenMetadata } from '../ft-contract'
 
 export interface ReservesMap {
   [index: string]: string;
@@ -26,15 +26,9 @@ export interface RefPool {
 
 // Returned from getPools(). Replace it with RefPool
 // Used in cache, which is read by math library
-export interface FormattedPool {
+export interface FormattedPool extends RefPool {
   id: number;
-  token_account_ids: string[],
-  total_fee: number;
-  amounts: string[];
-  // Redundant, can be derived from token_account_ids and amounts
-  reserves: {
-    [key: string]: string,
-  }
+  reserves: ReservesMap;
 }
 
 export interface Pool {

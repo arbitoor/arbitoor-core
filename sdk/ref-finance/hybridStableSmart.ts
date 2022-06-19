@@ -1,8 +1,8 @@
 import Big from 'big.js'
 import _ from 'lodash'
-import { STABLE_TOKEN_IDS, STABLE_TOKEN_USN_IDS, BTCIDS, CUSDIDS } from './constants'
-import { TokenMetadata } from './ft-contract'
-import { toNonDivisibleNumber, toReadableNumber } from './numbers'
+import { STABLE_TOKEN_IDS, STABLE_TOKEN_USN_IDS, BTCIDS, CUSDIDS } from '../constants'
+import { TokenMetadata } from '../ft-contract'
+import { toNonDivisibleNumber, toReadableNumber } from '../numbers'
 import { getPoolEstimate } from './ref-utils'
 import { Pool, PoolMode } from './swap-service'
 

@@ -1,31 +1,10 @@
 import _ from 'lodash'
-import { toNonDivisibleNumber } from './numbers'
+import { toNonDivisibleNumber } from '../numbers'
+import { StablePool } from './swap-service'
+
+export const STABLE_POOL_IDS = [1910, 3020, 3364, 3433]
 
 export const STABLE_LP_TOKEN_DECIMALS = 18
-
-export interface StablePool {
-  // pool_kind
-  token_account_ids: string[];
-  total_fee: number;
-  amounts: string[];
-  // total_fee
-  shares_total_supply: string;
-  amp: number;
-
-  id: number; // Fixed 1910
-  decimals: number[]; // read from tonic
-  c_amounts: string[]; // ?
-
-}
-
-export interface StablePoolResponse {
-  pool_kind: 'STABLE_SWAP',
-  token_account_ids: [string, string, string],
-  amounts: [string, string, string],
-  total_fee: number,
-  shares_total_supply: string,
-  amp: number,
-}
 
 export const getStableTokenIndex = (stable_pool_id: string | number) => {
   return {

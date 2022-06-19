@@ -1,5 +1,4 @@
 import * as math from 'mathjs'
-import { SwapActions } from './swap-service'
 
 export const convertToPercentDecimal = (percent: number) => {
   return math.divide(percent, 100)
@@ -13,24 +12,6 @@ export const percentLess = (percent: number, num: number | string) => {
   return math.format(math.evaluate(`${num} - ${percentOf(percent, num)}`), {
     notation: 'fixed'
   })
-}
-
-export function separateRoutes (
-  actions: SwapActions[],
-  outputToken: string
-) {
-  const res = []
-  let curRoute = []
-
-  for (const i in actions) {
-    curRoute.push(actions[i])
-    if (actions[i]!.outputToken === outputToken) {
-      res.push(curRoute)
-      curRoute = []
-    }
-  }
-
-  return res
 }
 
 export const toNonDivisibleNumber = (

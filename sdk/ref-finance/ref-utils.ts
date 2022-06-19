@@ -1,11 +1,11 @@
 import { TokenInfo } from '@tonic-foundation/token-list'
-import BigNumber from 'bignumber.js'
+import Big from 'big.js'
 import { CodeResult, Provider } from 'near-workspaces'
-import { REF, STABLE_POOL_ID } from './constants'
-import { TokenMetadata } from './ft-contract'
-import { toReadableNumber, scientificNotationToString, toPrecision } from './numbers'
-import { getSwappedAmount, StablePool, StablePoolResponse, STABLE_LP_TOKEN_DECIMALS } from './stable-swap'
-import { FormattedPool, Pool, RefPool, SwapActions } from './swap-service'
+import { REF } from '../constants'
+import { TokenMetadata } from '../ft-contract'
+import { toReadableNumber, scientificNotationToString, toPrecision } from '../numbers'
+import { getSwappedAmount, STABLE_LP_TOKEN_DECIMALS } from './stable-swap'
+import { Pool, RefPool, StablePool, SwapActions } from './swap-service'
 
 const FEE_DIVISOR = 10000
 
@@ -49,6 +49,24 @@ const getStablePoolEstimate = ({
   }
 }
 
+export function separateRoutes (
+  actions: SwapActions[],
+  outputToken: string
+) {
+  const res = []
+  let curRoute = []
+
+  for (const i in actions) {
+    curRoute.push(actions[i])
+    if (actions[i]!.outputToken === outputToken) {
+      res.push(curRoute)
+      curRoute = []
+    }
+  }
+
+  return res
+}
+
 const getSinglePoolEstimate = (
   tokenIn: TokenMetadata,
   tokenOut: TokenMetadata,
@@ -69,7 +87,8 @@ const getSinglePoolEstimate = (
     tokenOut.decimals,
     pool.supplies[tokenOut.id]
   )
-  const estimate = new BigNumber(
+
+  const estimate = new Big(
     (
       (amount_with_fee * Number(out_balance)) /
       (FEE_DIVISOR * Number(in_balance) + amount_with_fee)
@@ -85,6 +104,7 @@ const getSinglePoolEstimate = (
   }
 }
 
+// Fetches a pool from RPC
 export async function getPool (provider: Provider, poolId: number) {
   const res = await provider.query<CodeResult>({
     request_type: 'call_function',
@@ -93,20 +113,7 @@ export async function getPool (provider: Provider, poolId: number) {
     args_base64: Buffer.from(JSON.stringify({ pool_id: poolId })).toString('base64'),
     finality: 'optimistic'
   })
-  return JSON.parse(Buffer.from(res.result).toString())
-}
-
-export async function getStablePool (provider: Provider) {
-  // TODO filter out illiquid pools. There are only 20 liquid pools out of 3k total
-  const pool = await provider.query<CodeResult>({
-    request_type: 'call_function',
-    account_id: REF,
-    method_name: 'get_pool',
-    args_base64: Buffer.from(JSON.stringify({ pool_id: STABLE_POOL_ID })).toString('base64'),
-    finality: 'optimistic'
-  }).then((res) => JSON.parse(Buffer.from(res.result).toString())) as StablePoolResponse
-
-  return pool
+  return JSON.parse(Buffer.from(res.result).toString()) as RefPool
 }
 
 /**
@@ -126,19 +133,19 @@ export async function getPools (provider: Provider, exchange: string, index: num
     finality: 'optimistic'
   }).then((res) => JSON.parse(Buffer.from(res.result).toString()) as RefPool[])
 
-  // TODO remove redundant fields
   const formattedPools = pools.map(refPool => {
+    const reserves: {
+      [x: string]: string;
+    } = {}
+    for (let i = 0; i < refPool.token_account_ids.length; ++i) {
+      reserves[refPool.token_account_ids[i]!] = refPool.amounts[i]!
+    }
     const formattedPool = {
+      ...refPool,
       id: index,
-      token_account_ids: refPool.token_account_ids,
-      amounts: refPool.amounts,
-      total_fee: refPool.total_fee,
-      // retain for now
-      reserves: {
-        [refPool.token_account_ids[0]!]: refPool.amounts[0]!,
-        [refPool.token_account_ids[1]!]: refPool.amounts[1]!
-      }
-    } as FormattedPool
+      reserves
+    }
+
     ++index
 
     return formattedPool

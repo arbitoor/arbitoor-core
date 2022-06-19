@@ -1,9 +1,9 @@
 import { TokenInfo } from '@tonic-foundation/token-list'
+import _ from 'lodash'
 import { CodeResult, Provider } from 'near-workspaces'
-import { JUMBO, REF, STABLE_POOL_ID } from './constants'
+import { JUMBO, REF } from './constants'
 import { FTStorageBalance } from './ft-contract'
-import { getPools, getStablePool } from './ref-utils'
-import { FormattedPool } from './swap-service'
+import { getPools, STABLE_POOL_IDS, FormattedPool } from './ref-finance'
 
 export interface AccountProvider {
   /**
@@ -33,10 +33,10 @@ export class InMemoryProvider implements AccountProvider {
   private provider: Provider
 
   // Whether an address is registered on the token contract
-  // private tokenStorageCache: Map<[string, string], FTStorageBalance>
   private tokenStorageCache: Map<string, Map<string, FTStorageBalance>>
 
   private refPools: FormattedPool[]
+  private refStablePools: FormattedPool[]
   private jumboPools: FormattedPool[]
 
   private tokenMap: Map<string, TokenInfo>
@@ -45,33 +45,31 @@ export class InMemoryProvider implements AccountProvider {
     this.provider = provider
     this.tokenStorageCache = new Map()
     this.refPools = []
+    this.refStablePools = []
     this.jumboPools = []
     this.tokenMap = tokenMap
   }
 
   async fetchPools () {
-    const stablePool = await getStablePool(this.provider)
-    console.log('stable pool', stablePool)
+    const pools = _.flatten(await Promise.all([
+      getPools(this.provider, REF, 0, 500),
+      getPools(this.provider, REF, 500, 500),
+      getPools(this.provider, REF, 1000, 500),
+      getPools(this.provider, REF, 1500, 500),
+      getPools(this.provider, REF, 2000, 500),
+      getPools(this.provider, REF, 2500, 500),
+      getPools(this.provider, REF, 3000, 500),
+      getPools(this.provider, REF, 3500, 500)
+    ]))
 
-    this.refPools = [
-      ...await getPools(this.provider, REF, 0, 500),
-      ...await getPools(this.provider, REF, 500, 500),
-      ...await getPools(this.provider, REF, 1000, 500),
-      // stable pool 1910 omitted
-      ...await getPools(this.provider, REF, 1500, 410),
-      ...await getPools(this.provider, REF, 1911, 500),
-      ...await getPools(this.provider, REF, 2411, 500),
-      ...await getPools(this.provider, REF, 2911, 500)
-    ]
-    // filter out stable pools
+    this.refStablePools = pools.filter(pool => STABLE_POOL_IDS.includes(pool.id))
+    this.refPools = pools.filter(pool => !STABLE_POOL_IDS.includes(pool.id))
 
-    this.jumboPools = [
-      ...await getPools(this.provider, JUMBO, 0, 500),
-      ...await getPools(this.provider, JUMBO, 500, 500),
-      ...await getPools(this.provider, JUMBO, 1000, 500)
-    ]
-
-    // TODO store stable pool 1910 separately
+    this.jumboPools = _.flatten(await Promise.all([
+      getPools(this.provider, JUMBO, 0, 500),
+      getPools(this.provider, JUMBO, 500, 500),
+      getPools(this.provider, JUMBO, 1000, 500)
+    ]))
   }
 
   /**
@@ -107,6 +105,10 @@ export class InMemoryProvider implements AccountProvider {
 
   getJumboPools () {
     return this.jumboPools
+  }
+
+  getRefStablePools () {
+    return this.refStablePools
   }
 
   ftGetStorageBalance (

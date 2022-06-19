@@ -17,7 +17,6 @@ test('best route', async () => {
   const inMemoryProvider = new InMemoryProvider(MainnetRpc, tokenMap)
 
   const comet = new Comet({
-    provider: MainnetRpc,
     accountProvider: inMemoryProvider,
     user,
     routeCacheDuration: 1000

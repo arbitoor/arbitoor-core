@@ -30,7 +30,6 @@
     "@typescript-eslint/parser": "^5.22.0",
     "ava": "^4.0.1",
     "big.js": "^6.1.1",
-    "bignumber.js": "^9.0.2",
     "eslint": "^8.14.0",
     "eslint-config-standard": "^17.0.0",
     "eslint-plugin-ava": "^13.2.0",

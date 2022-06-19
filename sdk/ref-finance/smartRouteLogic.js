@@ -2,12 +2,8 @@
 // SMART ROUTE SWAP LOGIC
 ////////////////////////////////////////////////////////////////////////////
 import Big from 'big.js';
-import { checkIntegerSumOfAllocations } from './parallelSwapLogic'; // ok
-import {
-  ftGetTokenMetadata,
-} from './ft-contract';
-import { separateRoutes, percentLess } from './numbers';
-import { getPoolEstimate } from './ref-utils'
+import { checkIntegerSumOfAllocations } from './parallelSwapLogic'
+import { separateRoutes } from './ref-utils'
 
 Big.RM = 0;
 Big.DP = 40;

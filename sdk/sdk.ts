@@ -1,13 +1,12 @@
-import { Provider } from 'near-api-js/lib/providers'
 import { FunctionCallAction, Transaction } from '@near-wallet-selector/core'
 import { JUMBO, REF, STORAGE_TO_REGISTER_WITH_MFT } from './constants'
 import { round } from './ft-contract'
 import { percentLess, toReadableNumber, scientificNotationToString, toNonDivisibleNumber } from './numbers'
-import { getExpectedOutputFromActions, stableSmart } from './smartRouteLogic.js'
-import { SwapActions, PoolMode } from './swap-service'
+import { getExpectedOutputFromActions, stableSmart, SwapActions, PoolMode } from './ref-finance'
 import { AccountProvider } from './AccountProvider'
 import Big from 'big.js'
 
+// A route to reach token 1 to token 2
 export interface SwapRoute {
   dex: string;
   actions: SwapActions[];
@@ -15,13 +14,15 @@ export interface SwapRoute {
   txs: Transaction[];
 }
 
-export interface ComputeRoutes {
+// Input parameters to generate routes
+export interface RouteParameters {
   inputToken: string,
   outputToken: string,
   inputAmount: string,
   slippageTolerance: number,
 }
 
+// Input parameters to generate swap transactions
 export interface SwapOptions {
   exchange: string,
   useNearBalance?: boolean;
@@ -33,9 +34,6 @@ export interface SwapOptions {
 }
 
 export class Comet {
-  // NEAR provider to fetch data
-  provider: Provider
-
   // To fetch accounts
   accountProvider: AccountProvider
 
@@ -44,13 +42,11 @@ export class Comet {
   // Data is refreshed priodically after this many milliseconds elapse
   routeCacheDuration: number
 
-  constructor ({ provider, accountProvider, user, routeCacheDuration }: {
-    provider: Provider,
+  constructor ({ accountProvider, user, routeCacheDuration }: {
     accountProvider: AccountProvider,
     user: string,
     routeCacheDuration: number,
   }) {
-    this.provider = provider
     this.accountProvider = accountProvider
     this.user = user
     this.routeCacheDuration = routeCacheDuration
@@ -302,8 +298,6 @@ export class Comet {
   /**
    * Find trade routes from the input to output token, ranked by output amount.
    *
-   * This function should return array of transactions, with output amounts.
-   *
    * @param param0
    */
   async computeRoutes ({
@@ -311,7 +305,7 @@ export class Comet {
     outputToken,
     inputAmount,
     slippageTolerance
-  }: ComputeRoutes): Promise<SwapRoute[]> {
+  }: RouteParameters): Promise<SwapRoute[]> {
     // Read from cache
     const refPools = this.getPoolsWithEitherToken(REF, inputToken, outputToken)
     const jumboPools = this.getPoolsWithEitherToken(JUMBO, inputToken, outputToken)
