@@ -1,10 +1,11 @@
+import { TokenInfo } from '@tonic-foundation/token-list'
 import BigNumber from 'bignumber.js'
 import { CodeResult, Provider } from 'near-workspaces'
 import { REF, STABLE_POOL_ID } from './constants'
 import { TokenMetadata } from './ft-contract'
 import { toReadableNumber, scientificNotationToString, toPrecision } from './numbers'
 import { getSwappedAmount, StablePool, StablePoolResponse, STABLE_LP_TOKEN_DECIMALS } from './stable-swap'
-import { FormattedPool, Pool, RefPool } from './swap-service'
+import { FormattedPool, Pool, RefPool, SwapActions } from './swap-service'
 
 const FEE_DIVISOR = 10000
 
@@ -177,4 +178,34 @@ export const getPoolEstimate = ({
   // } else {
   //   return getSinglePoolEstimate(tokenIn, tokenOut, Pool, amountIn)
   // }
+}
+
+/**
+ * Returns a string representation of swap path
+ *
+ * Example: USDC -> USDT, USDC -> WNEAR, USDT
+ * @param actions
+ * @returns
+ */
+export function getRoutePath (actions: SwapActions[], tokenList: TokenInfo[]) {
+  const routes: string[] = []
+
+  for (let i = 0; i < actions.length; i++) {
+    const action = actions[i]!
+    const route = action
+      .nodeRoute!.map((token) => {
+        const saved = tokenList.find((savedToken) => {
+          return savedToken.address == token
+        })
+
+        return saved ? saved.symbol : token.slice(0, 10)
+      })
+      .join(' -> ')
+
+    if (i === 0 || routes[routes.length - 1] !== route) {
+      routes.push(route)
+    }
+  }
+
+  return routes
 }

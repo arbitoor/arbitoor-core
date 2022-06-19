@@ -1,7 +1,7 @@
 import { TokenInfo, TokenListProvider } from '@tonic-foundation/token-list'
 import test from 'ava'
 import { MainnetRpc } from 'near-workspaces'
-import { Comet } from '../../sdk'
+import { Comet, getRoutePath } from '../../sdk'
 import { InMemoryProvider } from '../../sdk/AccountProvider'
 
 test('best route', async () => {
@@ -39,5 +39,11 @@ test('best route', async () => {
     inputAmount,
     slippageTolerance
   })
-  console.log('outputs', routes.map(route => route.output.toString()))
+
+  console.log('outputs', routes.map(route => {
+    return {
+      output: route.output.toString(),
+      path: getRoutePath(route.actions, tokenList)
+    }
+  }))
 })

@@ -1,6 +1,5 @@
 import { Provider } from 'near-api-js/lib/providers'
 import { FunctionCallAction, Transaction } from '@near-wallet-selector/core'
-import { TokenInfo } from '@tonic-foundation/token-list'
 import { JUMBO, REF, STORAGE_TO_REGISTER_WITH_MFT } from './constants'
 import { round } from './ft-contract'
 import { percentLess, toReadableNumber, scientificNotationToString, toNonDivisibleNumber } from './numbers'
