@@ -2,14 +2,14 @@ import { FunctionCallAction, Transaction } from '@near-wallet-selector/core'
 import { JUMBO, REF, STORAGE_TO_REGISTER_WITH_MFT } from './constants'
 import { round } from './ft-contract'
 import { percentLess, toReadableNumber, scientificNotationToString, toNonDivisibleNumber } from './numbers'
-import { getExpectedOutputFromActions, stableSmart, SwapActions, PoolMode } from './ref-finance'
+import { getExpectedOutputFromActions, stableSmart, EstimateSwapView, PoolMode, filterPoolsWithEitherToken, getHybridStableSmart } from './ref-finance'
 import { AccountProvider } from './AccountProvider'
 import Big from 'big.js'
 
 // A route to reach token 1 to token 2
 export interface SwapRoute {
   dex: string;
-  actions: SwapActions[];
+  actions: EstimateSwapView[];
   output: Big;
   txs: Transaction[];
 }
@@ -20,17 +20,6 @@ export interface RouteParameters {
   outputToken: string,
   inputAmount: string,
   slippageTolerance: number,
-}
-
-// Input parameters to generate swap transactions
-export interface SwapOptions {
-  exchange: string,
-  useNearBalance?: boolean;
-  swapsToDo: SwapActions[];
-  tokenIn: string;
-  tokenOut: string;
-  amountIn: string;
-  slippageTolerance: number;
 }
 
 export class Comet {
@@ -52,25 +41,6 @@ export class Comet {
     this.routeCacheDuration = routeCacheDuration
   }
 
-  /**
-   * Get REF pools having one of the tokens
-   * @param exchange
-   * @param token1
-   * @param token2
-   * @returns
-   */
-  getPoolsWithEitherToken (exchange: string, token1: string, token2: string) {
-    // Read from cache
-    const pools = exchange == REF
-      ? this.accountProvider.getRefPools()
-      : this.accountProvider.getJumboPools()
-
-    // filter cached pools
-    return pools.filter(pool => {
-      return pool.token_account_ids.includes(token1) || pool.token_account_ids.includes(token2)
-    })
-  }
-
   async nearInstantSwap ({
     exchange,
     tokenIn,
@@ -78,7 +48,15 @@ export class Comet {
     amountIn,
     swapsToDo,
     slippageTolerance
-  }: SwapOptions) {
+  }: {
+    exchange: string,
+    swapsToDo: EstimateSwapView[];
+    tokenIn: string;
+    tokenOut: string;
+    amountIn: string;
+    slippageTolerance: number;
+    useNearBalance?: boolean;
+  }) {
     const transactions = new Array<Transaction>()
     const tokenInActions = new Array<FunctionCallAction>()
     const tokenOutActions = new Array<FunctionCallAction>()
@@ -172,6 +150,7 @@ export class Comet {
       // making sure all actions get included for hybrid stable smart.
       registerToken(tokenOut)
       var actionsList = []
+
       const swap1 = swapsToDo[0]!
       actionsList.push({
         pool_id: swap1.pool.id,
@@ -180,19 +159,21 @@ export class Comet {
         amount_in: amountIn,
         min_amount_out: '0'
       })
-      const swap2 = swapsToDo[1]!
-      actionsList.push({
-        pool_id: swap2.pool.id,
-        token_in: swap2.inputToken,
-        token_out: swap2.outputToken,
-        min_amount_out: round(
-          tokenOutDecimals,
-          toNonDivisibleNumber(
+      const swap2 = swapsToDo[1]
+      if (swap2) {
+        actionsList.push({
+          pool_id: swap2.pool.id,
+          token_in: swap2.inputToken,
+          token_out: swap2.outputToken,
+          min_amount_out: round(
             tokenOutDecimals,
-            percentLess(slippageTolerance, swapsToDo[1]!.estimate)
+            toNonDivisibleNumber(
+              tokenOutDecimals,
+              percentLess(slippageTolerance, swapsToDo[1]!.estimate)
+            )
           )
-        )
-      })
+        })
+      }
 
       transactions.push({
         receiverId: tokenIn,
@@ -307,51 +288,79 @@ export class Comet {
     slippageTolerance
   }: RouteParameters): Promise<SwapRoute[]> {
     // Read from cache
-    const refPools = this.getPoolsWithEitherToken(REF, inputToken, outputToken)
-    const jumboPools = this.getPoolsWithEitherToken(JUMBO, inputToken, outputToken)
+    const refPools = filterPoolsWithEitherToken(this.accountProvider.getRefPools(), inputToken, outputToken)
+    const jumboPools = filterPoolsWithEitherToken(this.accountProvider.getJumboPools(), inputToken, outputToken)
 
     // doesn't account for stable pool
-    const refActions = await stableSmart(
+    const refSwapView = await stableSmart(
       this.accountProvider,
       refPools,
       inputToken,
       outputToken,
       inputAmount,
       undefined
-    ) as SwapActions[]
+    ) as EstimateSwapView[]
+
+    const refSwapOutput = getExpectedOutputFromActions(
+      refSwapView,
+      outputToken,
+      slippageTolerance
+    )
 
     // REF hybrid smart algorithm
+    const hybridSwapView = await getHybridStableSmart(
+      this.accountProvider,
+      inputToken,
+      outputToken,
+      inputAmount
+    )
 
-    const jumboActions = await stableSmart(
+    const refRoute = new Big(hybridSwapView.estimate).gt(refSwapOutput)
+      ? {
+          dex: REF,
+          actions: hybridSwapView.actions,
+          output: new Big(hybridSwapView.estimate),
+          txs: await this.nearInstantSwap({
+            exchange: REF,
+            tokenIn: inputToken,
+            tokenOut: outputToken,
+            amountIn: inputAmount,
+            swapsToDo: hybridSwapView.actions,
+            slippageTolerance
+          })
+        }
+      : {
+          dex: REF,
+          actions: refSwapView,
+          output: getExpectedOutputFromActions(
+            refSwapView,
+            outputToken,
+            slippageTolerance
+          ),
+          txs: await this.nearInstantSwap({
+            exchange: REF,
+            tokenIn: inputToken,
+            tokenOut: outputToken,
+            amountIn: inputAmount,
+            swapsToDo: refSwapView,
+            slippageTolerance
+          })
+        }
+
+    const jumboSwapView = await stableSmart(
       this.accountProvider,
       jumboPools,
       inputToken,
       outputToken,
       inputAmount,
       undefined
-    ) as SwapActions[]
+    ) as EstimateSwapView[]
 
-    return [{
-      dex: REF,
-      actions: refActions,
-      output: getExpectedOutputFromActions(
-        refActions,
-        outputToken,
-        slippageTolerance
-      ),
-      txs: await this.nearInstantSwap({
-        exchange: REF,
-        tokenIn: inputToken,
-        tokenOut: outputToken,
-        amountIn: inputAmount,
-        swapsToDo: refActions,
-        slippageTolerance
-      })
-    }, {
+    return [refRoute, {
       dex: JUMBO,
-      actions: jumboActions,
+      actions: jumboSwapView,
       output: getExpectedOutputFromActions(
-        jumboActions,
+        jumboSwapView,
         outputToken,
         slippageTolerance
       ),
@@ -360,7 +369,7 @@ export class Comet {
         tokenIn: inputToken,
         tokenOut: outputToken,
         amountIn: inputAmount,
-        swapsToDo: jumboActions,
+        swapsToDo: jumboSwapView,
         slippageTolerance
       })
     }].sort((a, b) => {

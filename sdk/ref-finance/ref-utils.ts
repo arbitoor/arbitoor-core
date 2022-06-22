@@ -3,61 +3,22 @@ import Big from 'big.js'
 import { CodeResult, Provider } from 'near-workspaces'
 import { REF } from '../constants'
 import { TokenMetadata } from '../ft-contract'
-import { toReadableNumber, scientificNotationToString, toPrecision } from '../numbers'
-import { getSwappedAmount, STABLE_LP_TOKEN_DECIMALS } from './stable-swap'
-import { Pool, RefPool, StablePool, SwapActions } from './swap-service'
+import { toReadableNumber, scientificNotationToString, toPrecision, getPoolAllocationPercents } from '../numbers'
+import { getStablePoolEstimate } from './hybridStableSmart'
+import { getSwappedAmount, isStablePool, STABLE_LP_TOKEN_DECIMALS } from './stable-swap'
+import { FormattedPool, Pool, RefPool, StablePool, EstimateSwapView } from './swap-service'
 
 const FEE_DIVISOR = 10000
 
-const getStablePoolEstimate = ({
-  tokenIn,
-  tokenOut,
-  amountIn,
-  stablePoolInfo,
-  stablePool
-}: {
-  tokenIn: TokenMetadata;
-  tokenOut: TokenMetadata;
-  amountIn: string;
-  stablePoolInfo: StablePool;
-  stablePool: Pool;
-}) => {
-  const [amount_swapped, fee, dy] = getSwappedAmount(
-    tokenIn.id,
-    tokenOut.id,
-    amountIn,
-    stablePoolInfo
-  ) as [number, number, number]
-
-  const amountOut =
-    amount_swapped < 0
-      ? '0'
-      : toPrecision(scientificNotationToString(amount_swapped.toString()), 0)
-
-  const dyOut =
-    amount_swapped < 0
-      ? '0'
-      : toPrecision(scientificNotationToString(dy.toString()), 0)
-
-  return {
-    estimate: toReadableNumber(STABLE_LP_TOKEN_DECIMALS, amountOut),
-    noFeeAmountOut: toReadableNumber(STABLE_LP_TOKEN_DECIMALS, dyOut),
-    pool: { ...stablePool, Dex: 'ref' },
-    token: tokenIn,
-    outputToken: tokenOut.id,
-    inputToken: tokenIn.id
-  }
-}
-
 export function separateRoutes (
-  actions: SwapActions[],
+  actions: EstimateSwapView[],
   outputToken: string
 ) {
   const res = []
   let curRoute = []
 
   for (const i in actions) {
-    curRoute.push(actions[i])
+    curRoute.push(actions[i]!)
     if (actions[i]!.outputToken === outputToken) {
       res.push(curRoute)
       curRoute = []
@@ -68,9 +29,9 @@ export function separateRoutes (
 }
 
 const getSinglePoolEstimate = (
-  tokenIn: TokenMetadata,
-  tokenOut: TokenMetadata,
-  pool: Pool,
+  tokenIn: TokenInfo,
+  tokenOut: TokenInfo,
+  pool: FormattedPool | StablePool,
   tokenInAmount: string
 ) => {
   const allocation = toReadableNumber(
@@ -78,14 +39,14 @@ const getSinglePoolEstimate = (
     scientificNotationToString(tokenInAmount)
   )
 
-  const amount_with_fee = Number(allocation) * (FEE_DIVISOR - pool.fee)
+  const amount_with_fee = Number(allocation) * (FEE_DIVISOR - pool.total_fee)
   const in_balance = toReadableNumber(
     tokenIn.decimals,
-    pool.supplies[tokenIn.id]
+    pool.reserves[tokenIn.address]?.toString()
   )
   const out_balance = toReadableNumber(
     tokenOut.decimals,
-    pool.supplies[tokenOut.id]
+    pool.reserves[tokenOut.address]?.toString()
   )
 
   const estimate = new Big(
@@ -99,21 +60,44 @@ const getSinglePoolEstimate = (
     token: tokenIn,
     estimate,
     pool,
-    outputToken: tokenOut.id,
-    inputToken: tokenIn.id
+    outputToken: tokenOut.address,
+    inputToken: tokenIn.address
   }
 }
 
 // Fetches a pool from RPC
-export async function getPool (provider: Provider, poolId: number) {
+export async function getPool (provider: Provider, exchange: string, poolId: number) {
   const res = await provider.query<CodeResult>({
+    request_type: 'call_function',
+    account_id: exchange,
+    method_name: 'get_pool',
+    args_base64: Buffer.from(JSON.stringify({ pool_id: poolId })).toString('base64'),
+    finality: 'optimistic'
+  })
+  return JSON.parse(Buffer.from(res.result).toString()) as RefPool
+}
+
+export async function getStablePool (provider: Provider, poolId: number) {
+  const pool = await provider.query<CodeResult>({
     request_type: 'call_function',
     account_id: REF,
     method_name: 'get_stable_pool',
     args_base64: Buffer.from(JSON.stringify({ pool_id: poolId })).toString('base64'),
     finality: 'optimistic'
-  })
-  return JSON.parse(Buffer.from(res.result).toString()) as RefPool
+  }).then((res) => JSON.parse(Buffer.from(res.result).toString()))
+
+  const reserves: {
+    [x: string]: string;
+  } = {}
+  for (let i = 0; i < pool.token_account_ids.length; ++i) {
+    reserves[pool.token_account_ids[i]!] = pool.amounts[i]!
+  }
+
+  return {
+    id: poolId,
+    reserves,
+    ...pool
+  } as StablePool
 }
 
 /**
@@ -135,15 +119,16 @@ export async function getPools (provider: Provider, exchange: string, index: num
 
   const formattedPools = pools.map(refPool => {
     const reserves: {
-      [x: string]: string;
+      [x: string]: Big;
     } = {}
     for (let i = 0; i < refPool.token_account_ids.length; ++i) {
-      reserves[refPool.token_account_ids[i]!] = refPool.amounts[i]!
+      reserves[refPool.token_account_ids[i]!] = new Big(refPool.amounts[i]!)
     }
     const formattedPool = {
       ...refPool,
       id: index,
-      reserves
+      reserves,
+      dex: exchange
     }
 
     ++index
@@ -154,65 +139,102 @@ export async function getPools (provider: Provider, exchange: string, index: num
   return formattedPools
 }
 
-// not called in our case
+/**
+ * Gets the estimated swap output for a given token pair and liquidity pool.
+ * The pool can be xy=k or stableswap.
+ *
+ * @param param0
+ * @returns Swap estimate
+ */
 export const getPoolEstimate = ({
   tokenIn,
   tokenOut,
   amountIn,
   Pool
 }: {
-  tokenIn: TokenMetadata;
-  tokenOut: TokenMetadata;
+  tokenIn: TokenInfo;
+  tokenOut: TokenInfo;
   amountIn: string;
-  Pool: Pool;
+  Pool: FormattedPool | StablePool;
 }) => {
-  // TODO fix stable pool
-  return getSinglePoolEstimate(tokenIn, tokenOut, Pool, amountIn)
-
-  // if (Number(Pool.id) === STABLE_POOL_ID) {
-  //   // read stable pool from cache, instead of provider
-  //   // const stablePoolInfo = (await getStablePoolFromCache())[1];
-  //   const stablePoolInfo = await getStablePool(provider)
-  //   const stableEstimate = getStablePoolEstimate({
-  //     tokenIn,
-  //     tokenOut,
-  //     amountIn: toReadableNumber(tokenIn.decimals, amountIn),
-  //     stablePoolInfo,
-  //     stablePool: Pool
-  //   })
-  //   console.log('got stable estimate', stableEstimate)
-  //   return stableEstimate
-  // } else {
-  //   return getSinglePoolEstimate(tokenIn, tokenOut, Pool, amountIn)
-  // }
+  if (isStablePool(Pool.id)) {
+    return getStablePoolEstimate({
+      tokenIn: tokenIn.address,
+      tokenOut: tokenOut.address,
+      amountIn: toReadableNumber(tokenIn.decimals, amountIn),
+      stablePoolInfo: Pool as StablePool
+    })
+  } else {
+    return getSinglePoolEstimate(tokenIn, tokenOut, Pool, amountIn)
+  }
 }
 
 /**
- * Returns a string representation of swap path
+ * Returns a JS object representing a swap path. Each route can have one or more pools.
+ * The percentage split across each route is also returned.
  *
- * Example: USDC -> USDT, USDC -> WNEAR, USDT
- * @param actions
+ * Reference- https://github.com/ref-finance/ref-ui/blob/807dad2e1aa786adcb4cb7750de38258480b75d8/src/components/swap/CrossSwapCard.tsx#L160
+ *
+ * @param swapsTodo
+ * @returns Tokens, percentage split and pools per route.
+ */
+export function getRoutePath (swapsTodo: EstimateSwapView[]) {
+  const inputToken = swapsTodo.at(0)!.inputToken!
+  const outputToken = swapsTodo.at(-1)!.outputToken!
+  // A route can have two hops at max
+  const routes = separateRoutes(
+    swapsTodo,
+    swapsTodo.at(-1)!.outputToken!
+  ) as ([EstimateSwapView] | [EstimateSwapView, EstimateSwapView])[]
+
+  const firstPools = routes?.map((route) => route[0]!.pool)
+  const percents = getPoolAllocationPercents(firstPools)
+  return routes.map((route, index) => {
+    const tokens: [string, string] | [string, string, string] = route.length === 1
+      ? [inputToken, outputToken]
+      : [inputToken, route[0].outputToken!, outputToken]
+
+    return {
+      tokens,
+      percentage: percents[index]!,
+      pools: route.map(routePool => routePool.pool)
+    }
+  })
+}
+
+/**
+ * Filter pools having one of the tokens
+ * @param token1
+ * @param token2
  * @returns
  */
-export function getRoutePath (actions: SwapActions[], tokenList: TokenInfo[]) {
-  const routes: string[] = []
+export function filterPoolsWithEitherToken (pools: FormattedPool[], token1: string, token2: string) {
+  // filter cached pools
+  return pools.filter(pool => {
+    return pool.token_account_ids.includes(token1) || pool.token_account_ids.includes(token2)
+  })
+}
 
-  for (let i = 0; i < actions.length; i++) {
-    const action = actions[i]!
-    const route = action
-      .nodeRoute!.map((token) => {
-        const saved = tokenList.find((savedToken) => {
-          return savedToken.address == token
-        })
+/**
+ * Filter pools having one of the tokens
+ * @param token1
+ * @param token2
+ * @returns
+ */
+export function filterPoolsWithBothTokens (pools: (RefPool | StablePool)[], token1: string, token2: string) {
+  return pools.filter(pool =>
+    pool.token_account_ids.includes(token1) &&
+    pool.token_account_ids.includes(token2) &&
+    token1 !== token2
+  )
+}
 
-        return saved ? saved.symbol : token.slice(0, 10)
-      })
-      .join(' -> ')
-
-    if (i === 0 || routes[routes.length - 1] !== route) {
-      routes.push(route)
-    }
-  }
-
-  return routes
+/**
+ * Find the pool with matching ID
+ * @param pools Array of pools
+ * @param id Pool ID
+ * @returns
+ */
+export function findPoolWithId (pools: (FormattedPool | StablePool)[], id: number) {
+  return pools.find(pool => pool.id === id)
 }

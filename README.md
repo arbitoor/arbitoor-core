@@ -148,6 +148,8 @@
     1. stableSmart: do not use 1910 here. This is giving wrong value.
     2. hybridStableSmart: Need to integrate this in SDK
 
+- Big type issue- regular algorithm replaces string with bignumber, causing stableswap to break
+
 # Optimizing fetches
 - Fetching done at
     1. ft-contract/ftGetTokenMetadata: in smartRouteLogic.js for decimal places and token metadata. Replaced with tonic token list.

@@ -1,8 +1,8 @@
+import { TokenInfo } from '@tonic-foundation/token-list'
 import Big from 'big.js'
-import { TokenMetadata } from '../ft-contract'
 
 export interface ReservesMap {
-  [index: string]: string;
+  [index: string]: Big;
 }
 
 export enum PoolMode {
@@ -29,6 +29,17 @@ export interface RefPool {
 export interface FormattedPool extends RefPool {
   id: number;
   reserves: ReservesMap;
+  dex: string;
+}
+
+// Stable pools have a separate view function
+export interface StablePool extends Omit<RefPool, 'pool_kind'> {
+  id: number;
+  decimals: number[];
+  c_amounts: string[];
+  reserves: ReservesMap;
+  partialAmountIn?: string; // needed to generate TX
+  dex: string;
 }
 
 export interface Pool {
@@ -40,24 +51,7 @@ export interface Pool {
 
   // unknown fields
   tvl: number;
-  partialAmountIn?: string;
-}
-
-// eliminate. Store stable pools in separate variable
-export interface StablePool {
-  // Read from pool state
-  amounts: string[];
-  total_fee: number;
-  shares_total_supply: string;
-  amp: number;
-  token_account_ids: string[];
-
-  // Derived fields
-  id: number;
-  // LP token decimals?
-  decimals: number[];
-  // ?
-  c_amounts: string[];
+  partialAmountIn?: string; // needed to generate TX
 }
 
 // Holds parameters to find best route
@@ -76,9 +70,9 @@ export interface RoutePool {
   y?: string;
 }
 
-export interface SwapActions {
+export interface EstimateSwapView {
   estimate: string;
-  pool: Pool;
+  pool: Pool | StablePool;
   intl?: any;
   dy?: string;
   status?: PoolMode;
@@ -86,7 +80,9 @@ export interface SwapActions {
   inputToken?: string;
   outputToken?: string;
   nodeRoute?: string[];
-  tokens?: TokenMetadata[]; // redundant
+  // hybrid swap uses TokenInfo
+  tokens?: TokenInfo[];
+  // tokens?: TokenMetadata[]; // to generate token path on UI
   routeInputToken?: string;
   routeOutputToken?: string;
   route?: RoutePool[];
