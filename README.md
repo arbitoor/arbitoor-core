@@ -148,6 +148,31 @@
     1. stableSmart: do not use 1910 here. This is giving wrong value.
     2. hybridStableSmart: Need to integrate this in SDK
 
+- Output estimate issue-
+```js
+{
+  actions: [
+    {
+      token: [Object],
+      estimate: '3099683.606114',
+      pool: [Object],
+      outputToken: 'a0b86991c6218b36c1d19d4a2e9eb0ce3606eb48.factory.bridge.near',
+      inputToken: 'wrap.near',
+      status: 'smart routing',
+      tokens: [Array]
+    },
+    {
+      estimate: '3101574.68339672',
+      noFeeAmountOut: '3103126.24651998',
+      outputToken: 'dac17f958d2ee523a2206206994597c13d831ec7.factory.bridge.near',
+      inputToken: 'a0b86991c6218b36c1d19d4a2e9eb0ce3606eb48.factory.bridge.near',
+      status: 'smart routing',
+      tokens: [Array]
+    }
+  ],
+  estimate: '3101574.68339672'
+}
+```
 # Optimizing fetches
 - Fetching done at
     1. ft-contract/ftGetTokenMetadata: in smartRouteLogic.js for decimal places and token metadata. Replaced with tonic token list.

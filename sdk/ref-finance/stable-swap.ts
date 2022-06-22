@@ -1,18 +1,34 @@
 import _ from 'lodash'
+import { BTC_STABLE_POOL_ID, BTC_STABLE_POOL_INDEX, CUSD_STABLE_POOL_ID, CUSD_STABLE_POOL_INDEX, STABLE_POOL_ID, STABLE_POOL_USN_ID, STABLE_TOKEN_INDEX, STABLE_TOKEN_USN_INDEX } from '../constants'
 import { toNonDivisibleNumber } from '../numbers'
 import { StablePool } from './swap-service'
 
 export const STABLE_POOL_IDS = [1910, 3020, 3364, 3433]
 
+/**
+ * Whether a REF pool is a stable one. The ID is compared against the saved list of stable pool IDs.
+ * @param id Ref pool ID
+ * @returns
+ */
+export function isStablePool (id: number) {
+  return STABLE_POOL_IDS.includes(id)
+}
+
 export const STABLE_LP_TOKEN_DECIMALS = 18
 
-export const getStableTokenIndex = (stable_pool_id: string | number) => {
-  return {
-    'dac17f958d2ee523a2206206994597c13d831ec7.factory.bridge.near': 0,
-    'a0b86991c6218b36c1d19d4a2e9eb0ce3606eb48.factory.bridge.near': 1,
-    '6b175474e89094c44da98b954eedeac495271d0f.factory.bridge.near': 2
-  } as { [key: string]: number }
-}
+export function getStableTokenIndex (stable_pool_id: string | number): { [key: string]: number} | undefined {
+  const id = stable_pool_id.toString()
+  switch (id) {
+    case STABLE_POOL_ID.toString():
+      return STABLE_TOKEN_INDEX
+    case STABLE_POOL_USN_ID.toString():
+      return STABLE_TOKEN_USN_INDEX
+    case BTC_STABLE_POOL_ID.toString():
+      return BTC_STABLE_POOL_INDEX
+    case CUSD_STABLE_POOL_ID.toString():
+      return CUSD_STABLE_POOL_INDEX
+  }
+};
 
 export const calc_d = (amp: number, c_amounts: number[]) => {
   const token_num = c_amounts.length
@@ -73,14 +89,14 @@ const tradeFee = (amount: number, trade_fee: number) => {
   return (amount * trade_fee) / FEE_DIVISOR
 }
 
-export const calc_swap = (
+export function calc_swap (
   amp: number,
   in_token_idx: number,
   in_c_amount: number,
   out_token_idx: number,
   old_c_amounts: number[],
   trade_fee: number
-) => {
+): [number, number, number] {
   const y = calc_y(
     amp,
     in_c_amount + old_c_amounts[in_token_idx]!,
@@ -94,19 +110,20 @@ export const calc_swap = (
   return [amount_swapped, fee, dy]
 }
 
-export const getSwappedAmount = (
+export function getSwappedAmount (
   tokenInId: string,
   tokenOutId: string,
   amountIn: string,
   stablePool: StablePool
-) => {
+): [number, number, number] {
   const amp = stablePool.amp
   const trade_fee = stablePool.total_fee
 
-  const STABLE_TOKEN_INDEX = getStableTokenIndex(stablePool.id)
+  const STABLE_TOKEN_INDEX = getStableTokenIndex(stablePool.id)!
 
   const in_token_idx = STABLE_TOKEN_INDEX[tokenInId]!
   const out_token_idx = STABLE_TOKEN_INDEX[tokenOutId]!
+
   const old_c_amounts = stablePool.c_amounts.map((amount) => Number(amount))
   const in_c_amount = Number(
     toNonDivisibleNumber(STABLE_LP_TOKEN_DECIMALS, amountIn)

@@ -2,7 +2,7 @@ import { FunctionCallAction, Transaction } from '@near-wallet-selector/core'
 import { JUMBO, REF, STORAGE_TO_REGISTER_WITH_MFT } from './constants'
 import { round } from './ft-contract'
 import { percentLess, toReadableNumber, scientificNotationToString, toNonDivisibleNumber } from './numbers'
-import { getExpectedOutputFromActions, stableSmart, SwapActions, PoolMode } from './ref-finance'
+import { getExpectedOutputFromActions, stableSmart, SwapActions, PoolMode, filterPoolsWithEitherToken, getHybridStableSmart } from './ref-finance'
 import { AccountProvider } from './AccountProvider'
 import Big from 'big.js'
 
@@ -20,17 +20,6 @@ export interface RouteParameters {
   outputToken: string,
   inputAmount: string,
   slippageTolerance: number,
-}
-
-// Input parameters to generate swap transactions
-export interface SwapOptions {
-  exchange: string,
-  useNearBalance?: boolean;
-  swapsToDo: SwapActions[];
-  tokenIn: string;
-  tokenOut: string;
-  amountIn: string;
-  slippageTolerance: number;
 }
 
 export class Comet {
@@ -52,25 +41,6 @@ export class Comet {
     this.routeCacheDuration = routeCacheDuration
   }
 
-  /**
-   * Get REF pools having one of the tokens
-   * @param exchange
-   * @param token1
-   * @param token2
-   * @returns
-   */
-  getPoolsWithEitherToken (exchange: string, token1: string, token2: string) {
-    // Read from cache
-    const pools = exchange == REF
-      ? this.accountProvider.getRefPools()
-      : this.accountProvider.getJumboPools()
-
-    // filter cached pools
-    return pools.filter(pool => {
-      return pool.token_account_ids.includes(token1) || pool.token_account_ids.includes(token2)
-    })
-  }
-
   async nearInstantSwap ({
     exchange,
     tokenIn,
@@ -78,7 +48,15 @@ export class Comet {
     amountIn,
     swapsToDo,
     slippageTolerance
-  }: SwapOptions) {
+  }: {
+    exchange: string,
+    swapsToDo: SwapActions[];
+    tokenIn: string;
+    tokenOut: string;
+    amountIn: string;
+    slippageTolerance: number;
+    useNearBalance?: boolean;
+  }) {
     const transactions = new Array<Transaction>()
     const tokenInActions = new Array<FunctionCallAction>()
     const tokenOutActions = new Array<FunctionCallAction>()
@@ -172,6 +150,7 @@ export class Comet {
       // making sure all actions get included for hybrid stable smart.
       registerToken(tokenOut)
       var actionsList = []
+
       const swap1 = swapsToDo[0]!
       actionsList.push({
         pool_id: swap1.pool.id,
@@ -180,19 +159,22 @@ export class Comet {
         amount_in: amountIn,
         min_amount_out: '0'
       })
-      const swap2 = swapsToDo[1]!
-      actionsList.push({
-        pool_id: swap2.pool.id,
-        token_in: swap2.inputToken,
-        token_out: swap2.outputToken,
-        min_amount_out: round(
-          tokenOutDecimals,
-          toNonDivisibleNumber(
+      const swap2 = swapsToDo[1]
+      if (swap2) {
+        console.log('got swap2', swap2)
+        actionsList.push({
+          pool_id: swap2.pool.id,
+          token_in: swap2.inputToken,
+          token_out: swap2.outputToken,
+          min_amount_out: round(
             tokenOutDecimals,
-            percentLess(slippageTolerance, swapsToDo[1]!.estimate)
+            toNonDivisibleNumber(
+              tokenOutDecimals,
+              percentLess(slippageTolerance, swapsToDo[1]!.estimate)
+            )
           )
-        )
-      })
+        })
+      }
 
       transactions.push({
         receiverId: tokenIn,
@@ -307,8 +289,8 @@ export class Comet {
     slippageTolerance
   }: RouteParameters): Promise<SwapRoute[]> {
     // Read from cache
-    const refPools = this.getPoolsWithEitherToken(REF, inputToken, outputToken)
-    const jumboPools = this.getPoolsWithEitherToken(JUMBO, inputToken, outputToken)
+    const refPools = filterPoolsWithEitherToken(this.accountProvider.getRefPools(), inputToken, outputToken)
+    const jumboPools = filterPoolsWithEitherToken(this.accountProvider.getJumboPools(), inputToken, outputToken)
 
     // doesn't account for stable pool
     const refActions = await stableSmart(
@@ -321,6 +303,27 @@ export class Comet {
     ) as SwapActions[]
 
     // REF hybrid smart algorithm
+    // const hybridActions = await getHybridStableSmart(
+    //   this.accountProvider,
+    //   inputToken,
+    //   outputToken,
+    //   inputAmount
+    // )
+    // // console.log('hybrid actions', hybridActions)
+
+    // try {
+    //   const hybridTxs = await this.nearInstantSwap({
+    //     exchange: REF,
+    //     tokenIn: inputToken,
+    //     tokenOut: outputToken,
+    //     amountIn: inputAmount,
+    //     swapsToDo: hybridActions.actions,
+    //     slippageTolerance
+    //   })
+    //   console.log('hybrid txs', hybridTxs)
+    // } catch (error) {
+    //   console.error('hybrid error', error)
+    // }
 
     const jumboActions = await stableSmart(
       this.accountProvider,

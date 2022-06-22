@@ -2073,9 +2073,7 @@ export function getExpectedOutputFromActions(
   const routes = separateRoutes(actions, outputToken);
   for (let i = 0; i < routes.length; i++) {
     const curRoute = routes[i];
-    console.log('current route', curRoute)
     if (curRoute.length === 1) {
-      console.log('first')
       // estimate is incorrectly calculated
       expectedOutput = expectedOutput.plus(curRoute[0].estimate);
 

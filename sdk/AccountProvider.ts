@@ -3,7 +3,7 @@ import _ from 'lodash'
 import { CodeResult, Provider } from 'near-workspaces'
 import { JUMBO, REF } from './constants'
 import { FTStorageBalance } from './ft-contract'
-import { getPools, STABLE_POOL_IDS, FormattedPool } from './ref-finance'
+import { getPools, STABLE_POOL_IDS, FormattedPool, isStablePool, getStablePool, StablePool } from './ref-finance'
 
 export interface AccountProvider {
   /**
@@ -15,6 +15,8 @@ export interface AccountProvider {
   ftGetStorageBalance(token: string, accountId: string): FTStorageBalance | undefined
 
   getRefPools(): FormattedPool[]
+
+  getRefStablePools(): StablePool[]
 
   getJumboPools(): FormattedPool[]
 
@@ -36,7 +38,7 @@ export class InMemoryProvider implements AccountProvider {
   private tokenStorageCache: Map<string, Map<string, FTStorageBalance>>
 
   private refPools: FormattedPool[]
-  private refStablePools: FormattedPool[]
+  private refStablePools: StablePool[]
   private jumboPools: FormattedPool[]
 
   private tokenMap: Map<string, TokenInfo>
@@ -62,8 +64,12 @@ export class InMemoryProvider implements AccountProvider {
       getPools(this.provider, REF, 3500, 500)
     ]))
 
-    this.refStablePools = pools.filter(pool => STABLE_POOL_IDS.includes(pool.id))
-    this.refPools = pools.filter(pool => !STABLE_POOL_IDS.includes(pool.id))
+    // this.refStablePools = pools.filter(pool => STABLE_POOL_IDS.includes(pool.id))
+    this.refPools = pools.filter(pool => !isStablePool(pool.id))
+
+    this.refStablePools = await Promise.all(STABLE_POOL_IDS.map(
+      stablePoolId => getStablePool(this.provider, stablePoolId))
+    )
 
     this.jumboPools = _.flatten(await Promise.all([
       getPools(this.provider, JUMBO, 0, 500),

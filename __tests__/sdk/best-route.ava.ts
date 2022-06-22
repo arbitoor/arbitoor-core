@@ -39,10 +39,10 @@ test('best route', async () => {
     slippageTolerance
   })
 
-  console.log('outputs', routes.map(route => {
-    return {
-      output: route.output.toString(),
-      path: getRoutePath(route.actions, tokenList)
-    }
-  }))
+  // console.log('outputs', routes.map(route => {
+  //   return {
+  //     output: route.output.toString(),
+  //     path: getRoutePath(route.actions, tokenList)
+  //   }
+  // }))
 })

@@ -31,6 +31,31 @@ export interface FormattedPool extends RefPool {
   reserves: ReservesMap;
 }
 
+export interface StablePool extends Omit<RefPool, 'pool_kind'> {
+  id: number;
+  decimals: number[];
+  c_amounts: string[];
+  reserves: ReservesMap;
+  partialAmountIn?: string; // needed to generate TX
+}
+
+// // Stable pools have a separate view function
+// export interface StablePool {
+//   // Read from pool state
+//   amounts: string[];
+//   total_fee: number;
+//   shares_total_supply: string;
+//   amp: number;
+//   token_account_ids: string[];
+
+//   // Derived fields
+//   id: number;
+//   // LP token decimals?
+//   decimals: number[];
+//   // ?
+//   c_amounts: string[];
+// }
+
 export interface Pool {
   id: number;
   tokenIds: string[];
@@ -40,24 +65,7 @@ export interface Pool {
 
   // unknown fields
   tvl: number;
-  partialAmountIn?: string;
-}
-
-// eliminate. Store stable pools in separate variable
-export interface StablePool {
-  // Read from pool state
-  amounts: string[];
-  total_fee: number;
-  shares_total_supply: string;
-  amp: number;
-  token_account_ids: string[];
-
-  // Derived fields
-  id: number;
-  // LP token decimals?
-  decimals: number[];
-  // ?
-  c_amounts: string[];
+  partialAmountIn?: string; // needed to generate TX
 }
 
 // Holds parameters to find best route
@@ -78,7 +86,7 @@ export interface RoutePool {
 
 export interface SwapActions {
   estimate: string;
-  pool: Pool;
+  pool: Pool | StablePool;
   intl?: any;
   dy?: string;
   status?: PoolMode;
@@ -86,7 +94,7 @@ export interface SwapActions {
   inputToken?: string;
   outputToken?: string;
   nodeRoute?: string[];
-  tokens?: TokenMetadata[]; // redundant
+  // tokens?: TokenMetadata[]; // redundant
   routeInputToken?: string;
   routeOutputToken?: string;
   route?: RoutePool[];

@@ -59,7 +59,6 @@ export const toReadableNumber = (
   number: string = '0'
 ): string => {
   if (!decimals) return number
-
   const wholeStr = number.substring(0, number.length - decimals) || '0'
   const fractionStr = number
     .substring(number.length - decimals)
