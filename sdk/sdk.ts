@@ -7,11 +7,10 @@ import { AccountProvider } from './AccountProvider'
 import Big from 'big.js'
 
 // A route to reach token 1 to token 2
-export interface SwapRoute {
+export interface RouteInfo {
   dex: string;
-  actions: EstimateSwapView[];
+  view: EstimateSwapView[];
   output: Big;
-  txs: Transaction[];
 }
 
 // Input parameters to generate routes
@@ -22,7 +21,7 @@ export interface RouteParameters {
   slippageTolerance: number,
 }
 
-export class Comet {
+export class Arbitoor {
   // To fetch accounts
   accountProvider: AccountProvider
 
@@ -41,7 +40,7 @@ export class Comet {
     this.routeCacheDuration = routeCacheDuration
   }
 
-  async nearInstantSwap ({
+  async generateTransactions ({
     exchange,
     tokenIn,
     tokenOut,
@@ -286,7 +285,7 @@ export class Comet {
     outputToken,
     inputAmount,
     slippageTolerance
-  }: RouteParameters): Promise<SwapRoute[]> {
+  }: RouteParameters): Promise<RouteInfo[]> {
     // Read from cache
     const refPools = filterPoolsWithEitherToken(this.accountProvider.getRefPools(), inputToken, outputToken)
     const jumboPools = filterPoolsWithEitherToken(this.accountProvider.getJumboPools(), inputToken, outputToken)
@@ -318,33 +317,17 @@ export class Comet {
     const refRoute = new Big(hybridSwapView.estimate).gt(refSwapOutput)
       ? {
           dex: REF,
-          actions: hybridSwapView.actions,
+          view: hybridSwapView.actions,
           output: new Big(hybridSwapView.estimate),
-          txs: await this.nearInstantSwap({
-            exchange: REF,
-            tokenIn: inputToken,
-            tokenOut: outputToken,
-            amountIn: inputAmount,
-            swapsToDo: hybridSwapView.actions,
-            slippageTolerance
-          })
         }
       : {
           dex: REF,
-          actions: refSwapView,
+          view: refSwapView,
           output: getExpectedOutputFromActions(
             refSwapView,
             outputToken,
             slippageTolerance
-          ),
-          txs: await this.nearInstantSwap({
-            exchange: REF,
-            tokenIn: inputToken,
-            tokenOut: outputToken,
-            amountIn: inputAmount,
-            swapsToDo: refSwapView,
-            slippageTolerance
-          })
+          )
         }
 
     const jumboSwapView = await stableSmart(
@@ -358,20 +341,12 @@ export class Comet {
 
     return [refRoute, {
       dex: JUMBO,
-      actions: jumboSwapView,
+      view: jumboSwapView,
       output: getExpectedOutputFromActions(
         jumboSwapView,
         outputToken,
         slippageTolerance
       ),
-      txs: await this.nearInstantSwap({
-        exchange: JUMBO,
-        tokenIn: inputToken,
-        tokenOut: outputToken,
-        amountIn: inputAmount,
-        swapsToDo: jumboSwapView,
-        slippageTolerance
-      })
     }].sort((a, b) => {
       if (a.output.gt(b.output)) {
         return -1

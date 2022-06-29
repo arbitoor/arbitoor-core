@@ -1,7 +1,7 @@
 import { TokenInfo, TokenListProvider } from '@tonic-foundation/token-list'
 import test from 'ava'
 import { MainnetRpc } from 'near-workspaces'
-import { Comet, getRoutePath } from '../../sdk'
+import { Arbitoor, getRoutePath } from '../../sdk'
 import { InMemoryProvider } from '../../sdk/AccountProvider'
 
 test('best route', async t => {
@@ -16,7 +16,7 @@ test('best route', async t => {
 
   const inMemoryProvider = new InMemoryProvider(MainnetRpc, tokenMap)
 
-  const comet = new Comet({
+  const arbitoor = new Arbitoor({
     accountProvider: inMemoryProvider,
     user,
     routeCacheDuration: 1000
@@ -32,7 +32,7 @@ test('best route', async t => {
   await inMemoryProvider.fetchPools()
 
   // just returns actions for one swap
-  const routes = await comet.computeRoutes({
+  const routes = await arbitoor.computeRoutes({
     inputToken,
     outputToken,
     inputAmount,
@@ -42,11 +42,7 @@ test('best route', async t => {
   console.log('outputs', routes.map(route => {
     return {
       output: route.output.toString(),
-      path: getRoutePath(route.actions)
+      path: getRoutePath(route.view)
     }
   }))
-
-  // for (const route of routes) {
-  //   t.log(route.output, JSON.stringify(getRoutePath(route.actions), undefined, 4))
-  // }
 })
