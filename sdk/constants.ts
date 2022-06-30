@@ -1,6 +1,7 @@
 export const STORAGE_TO_REGISTER_WITH_MFT = '100000000000000000000000'
 export const REF = 'v2.ref-finance.near'
 export const JUMBO = 'v1.jumbo_exchange.near'
+export const MEMO = 'arbitoor'
 
 export const STABLE_TOKEN_IDS = [
   'dac17f958d2ee523a2206206994597c13d831ec7.factory.bridge.near',
