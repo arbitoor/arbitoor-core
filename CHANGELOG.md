@@ -18,3 +18,9 @@
 - Transactions `txs` are no longer returned from `computeRoutes()`. You need generate them by manually calling `generateTransactions()`. This function was earlier named `nearInstantSwap()`.
 
 - Stableswap has a different way to find a visual route. Use the new `getRoutePath()` function, which returns an object having the token path, pools and percentage split across different routes.
+
+## 1.0.12
+
+### Fixes
+
+- Return empty path if no swaps are present.

@@ -179,6 +179,10 @@ export const getPoolEstimate = ({
  * @returns Tokens, percentage split and pools per route.
  */
 export function getRoutePath (swapsTodo: EstimateSwapView[]) {
+  if (swapsTodo.length === 0) {
+    return []
+  }
+
   const inputToken = swapsTodo.at(0)!.inputToken!
   const outputToken = swapsTodo.at(-1)!.outputToken!
   // A route can have two hops at max
