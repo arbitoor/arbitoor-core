@@ -19,8 +19,14 @@
 
 - Stableswap has a different way to find a visual route. Use the new `getRoutePath()` function, which returns an object having the token path, pools and percentage split across different routes.
 
-## 1.0.12
+## 1.0.14
 
 ### Fixes
 
 - Return empty path if no swaps are present.
+
+## 1.0.15
+
+### Fixes
+
+- Filter out `RATED_SWAP` pools from stablesmart algorithm. Fixes USN swaps on REF.

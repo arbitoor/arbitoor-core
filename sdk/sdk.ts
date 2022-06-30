@@ -133,7 +133,7 @@ export class Arbitoor {
               force: 0,
               actions: swapActions
             }),
-            memo: MEMO,
+            memo: MEMO
           },
           gas: '180000000000000',
           deposit: '1'
@@ -190,7 +190,7 @@ export class Arbitoor {
                   force: 0,
                   actions: actionsList
                 }),
-                memo: MEMO,
+                memo: MEMO
               },
               gas: '180000000000000',
               deposit: '1'
@@ -264,7 +264,7 @@ export class Arbitoor {
                   force: 0,
                   actions: actionsList
                 }),
-                memo: MEMO,
+                memo: MEMO
               },
               gas: '180000000000000',
               deposit: '1'
@@ -321,7 +321,7 @@ export class Arbitoor {
       ? {
           dex: REF,
           view: hybridSwapView.actions,
-          output: new Big(hybridSwapView.estimate),
+          output: new Big(hybridSwapView.estimate)
         }
       : {
           dex: REF,
@@ -349,7 +349,7 @@ export class Arbitoor {
         jumboSwapView,
         outputToken,
         slippageTolerance
-      ),
+      )
     }].sort((a, b) => {
       if (a.output.gt(b.output)) {
         return -1

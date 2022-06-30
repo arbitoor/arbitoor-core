@@ -3,7 +3,7 @@ import _ from 'lodash'
 import { CodeResult, Provider } from 'near-workspaces'
 import { JUMBO, REF } from './constants'
 import { FTStorageBalance } from './ft-contract'
-import { getPools, STABLE_POOL_IDS, FormattedPool, isStablePool, getStablePool, StablePool } from './ref-finance'
+import { getPools, STABLE_POOL_IDS, FormattedPool, isStablePool, getStablePool, StablePool, isRatedPool, RATED_POOL_IDS, getRatedPool } from './ref-finance'
 
 export interface AccountProvider {
   /**
@@ -64,11 +64,14 @@ export class InMemoryProvider implements AccountProvider {
       getPools(this.provider, REF, 3500, 500)
     ]))
 
-    this.refPools = pools.filter(pool => !isStablePool(pool.id))
+    this.refPools = pools
+      .filter(pool => !isStablePool(pool.id) && !isRatedPool(pool.id))
 
-    this.refStablePools = await Promise.all(STABLE_POOL_IDS.map(
-      stablePoolId => getStablePool(this.provider, stablePoolId))
-    )
+    this.refStablePools = await Promise.all([
+      ...STABLE_POOL_IDS.map(stablePoolId => getStablePool(this.provider, stablePoolId)),
+      // TODO research rated pool
+      // ...RATED_SWAP_POOL_IDS.map(ratedPoolId => getRatedPool(this.provider, ratedPoolId)),
+    ])
 
     this.jumboPools = _.flatten(await Promise.all([
       getPools(this.provider, JUMBO, 0, 500),

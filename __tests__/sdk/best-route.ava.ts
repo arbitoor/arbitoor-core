@@ -22,9 +22,9 @@ test('best route', async t => {
     routeCacheDuration: 1000
   })
 
-  const inputToken = 'a0b86991c6218b36c1d19d4a2e9eb0ce3606eb48.factory.bridge.near'
-  const outputToken = 'dac17f958d2ee523a2206206994597c13d831ec7.factory.bridge.near'
-  const inputAmount = '1000000000'
+  const inputToken = 'wrap.near'
+  const outputToken = 'usn'
+  const inputAmount = '100000000000000000000000000'
   const slippageTolerance = 5
 
   // Poll for pools and storage. If storage is set, then storage polling can be stopped.
@@ -39,10 +39,15 @@ test('best route', async t => {
     slippageTolerance
   })
 
-  console.log('outputs', routes.map(route => {
+  t.log('outputs', routes.map(route => {
+    const path = getRoutePath(route.view)
+
     return {
       output: route.output.toString(),
-      path: getRoutePath(route.view)
+      path: JSON.stringify(path.map(p => p.tokens), undefined, 4),
+      // pools: JSON.stringify(path[0]?.pools, undefined, 4),
+      // pools2: JSON.stringify(path[1]?.pools, undefined, 4),
     }
   }))
+
 })

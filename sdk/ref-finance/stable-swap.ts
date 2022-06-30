@@ -4,6 +4,7 @@ import { toNonDivisibleNumber } from '../numbers'
 import { StablePool } from './swap-service'
 
 export const STABLE_POOL_IDS = [1910, 3020, 3364, 3433]
+export const RATED_POOL_IDS = [3514, 3515] // improved stableswap pools
 
 /**
  * Whether a REF pool is a stable one. The ID is compared against the saved list of stable pool IDs.
@@ -12,6 +13,15 @@ export const STABLE_POOL_IDS = [1910, 3020, 3364, 3433]
  */
 export function isStablePool (id: number) {
   return STABLE_POOL_IDS.includes(id)
+}
+
+/**
+ * Whether a REF pool is a rated swap one. The ID is compared against the saved list of rated swap pool IDs.
+ * @param id Ref pool ID
+ * @returns
+ */
+export function isRatedPool (id: number) {
+  return RATED_POOL_IDS.includes(id)
 }
 
 export const STABLE_LP_TOKEN_DECIMALS = 18

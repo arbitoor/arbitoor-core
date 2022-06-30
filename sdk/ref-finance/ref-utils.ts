@@ -101,6 +101,35 @@ export async function getStablePool (provider: Provider, poolId: number) {
 }
 
 /**
+ * Fetch a rated pool. Rated pools are an improved version of stable pools.
+ * @param provider
+ * @param poolId
+ * @returns
+ */
+export async function getRatedPool (provider: Provider, poolId: number) {
+  const pool = await provider.query<CodeResult>({
+    request_type: 'call_function',
+    account_id: REF,
+    method_name: 'get_rated_pool',
+    args_base64: Buffer.from(JSON.stringify({ pool_id: poolId })).toString('base64'),
+    finality: 'optimistic'
+  }).then((res) => JSON.parse(Buffer.from(res.result).toString()))
+
+  const reserves: {
+    [x: string]: string;
+  } = {}
+  for (let i = 0; i < pool.token_account_ids.length; ++i) {
+    reserves[pool.token_account_ids[i]!] = pool.amounts[i]!
+  }
+
+  return {
+    id: poolId,
+    reserves,
+    ...pool
+  } as StablePool
+}
+
+/**
   * Fetches a number of REF pools
   * @param provider The RPC provider
   * @param index Start index for pagination

@@ -150,6 +150,8 @@
 
 - Big type issue- regular algorithm replaces string with bignumber, causing stableswap to break
 
+- Rated pools
+    1. Filter them in stableSmart, but include in hybrid smart.
 # Optimizing fetches
 - Fetching done at
     1. ft-contract/ftGetTokenMetadata: in smartRouteLogic.js for decimal places and token metadata. Replaced with tonic token list.
