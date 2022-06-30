@@ -137,6 +137,10 @@ export class InMemoryProvider implements AccountProvider {
       finality: 'optimistic'
     }).then((res) => JSON.parse(Buffer.from(res.result).toString())) as TokenInfo | undefined
 
+    if (fetchedMetadata) {
+      this.tokenMap.set(token, fetchedMetadata)
+    }
+
     return fetchedMetadata
   }
 }
