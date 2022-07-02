@@ -138,28 +138,94 @@
 
 # Stableswap support
 
-- Code breaks at at STABLE_POOL_ID = 1910. Had to disable fetches here.
-- computeRoutes() actions hold a wrong estimate. Perhaps stableswap output is calculated, but overridden by larger uni v2 formula. Maybe we should disable 1910 for uni v2 algorithm.
-    - computeRoutes
-    - stableSmart
-    - smartRouteLogic.js (getSmartRouteSwapActions): REF UI doesn't handle stable pool here. This is for regular pools.
-    - getExpectedOutputFromActions() is used to calculate output amount. REF only passes a single element array. There must be a separate function to generate stable pool actions.
-- REF has two algorithms:
-    1. stableSmart: do not use 1910 here. This is giving wrong value.
-    2. hybridStableSmart: Need to integrate this in SDK
-
-- Big type issue- regular algorithm replaces string with bignumber, causing stableswap to break
-
 - Rated pools
     1. Filter them in stableSmart, but include in hybrid smart.
-# Optimizing fetches
-- Fetching done at
-    1. ft-contract/ftGetTokenMetadata: in smartRouteLogic.js for decimal places and token metadata. Replaced with tonic token list.
-    2. ft-contract/ftGetStorageBalance: In sdk.ts to know whether storage deposit is needed. Can be cached as a (token, bool) map. Read whenever a new token is picked. Optimize later by re-fetching every 10 seconds if value is false.
-    3. ref-utils/getPools: In getPoolsWithEitherToken() > computeRoutes(). This is the main function needed.
 
-- Whenever a new token is selected, or a refresh is triggered-
-    1. Refetch pools: we need fresh state to know the best route
-    2. Know whether storage is needed
+# Spin integration
 
-- Wallet provider can be replaced with Cache provider
+1. Read output amount with
+
+```sh
+near view spot.spin-fi.near dry_run_swap '{"swap":{"market_id":1,"price":"3267000"},"token":"near.near","amount":"1000000000000000000000000000"}'
+```
+
+Result
+```js
+{
+  refund: '251170000000000000000000000',
+  received: '2470760500',
+  fee: '2470760'
+}
+```
+
+    - Only single hops are supported
+    - Save a JSON file of spin markets
+    - Dealing with refunds- if refund amount is large, the swap is not competitive and will be subsumed by another DEX. We can skip this field.
+    - Market 1 (NEAR/USDC) deals with NEAR, not wNEAR. We need wrapper logic before this pool can be supported.
+    - `price` field is for slippage. It's needed for swaps and dry runs.
+
+
+2. Read markets with
+
+```sh
+NEAR_ENV=mainnet near view spot.spin-fi.near get_markets
+```
+
+```js
+[
+  {
+    id: 1,
+    ticker: 'NEAR/USDC',
+    base: { id: 1, symbol: 'NEAR', decimal: 24, address: 'near.near' },
+    quote: {
+      id: 2,
+      symbol: 'USDC',
+      decimal: 6,
+      address: 'a0b86991c6218b36c1d19d4a2e9eb0ce3606eb48.factory.bridge.near'
+    },
+    fees: {
+      maker_fee: '500',
+      taker_fee: '1000',
+      decimals: 6,
+      is_rebate: true
+    },
+    availability: { allow_place: true, allow_cancel: true },
+    limits: {
+      tick_size: '10000',
+      step_size: '10000000000000000000000',
+      min_base_quantity: '100000000000000000000000',
+      max_base_quantity: '20000000000000000000000000',
+      min_quote_quantity: '500000',
+      max_quote_quantity: '100000000',
+      max_bid_count: 20,
+      max_ask_count: 20
+    }
+  }
+]
+```
+
+2. Read orderbooks with
+
+```sh
+NEAR_ENV=mainnet near view spot.spin-fi.near get_orderbook '{ "market_id": 1, "limit": 4 }'
+```
+
+```js
+{
+  ask_orders: [
+    { price: '3290000', quantity: '461670000000000000000000000' },
+    { price: '3300000', quantity: '24290000000000000000000000' },
+    { price: '3700000', quantity: '5050000000000000000000000' },
+    { price: '3750000', quantity: '5000000000000000000000000' }
+  ],
+  bid_orders: [
+    { price: '3270000', quantity: '720890000000000000000000000' },
+    { price: '3260000', quantity: '38220000000000000000000000' },
+    { price: '3000000', quantity: '14000000000000000000000000' },
+    { price: '2900000', quantity: '20000000000000000000000000' }
+  ]
+}
+```
+
+    - bid = buy, ask = sell
+    - Quantity is in terms of base.

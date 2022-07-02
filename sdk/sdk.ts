@@ -5,6 +5,7 @@ import { percentLess, toReadableNumber, scientificNotationToString, toNonDivisib
 import { getExpectedOutputFromActions, stableSmart, EstimateSwapView, PoolMode, filterPoolsWithEitherToken, getHybridStableSmart } from './ref-finance'
 import { AccountProvider } from './AccountProvider'
 import Big from 'big.js'
+import { getSpinOutput } from './spin/spin-api'
 
 // A route to reach token 1 to token 2
 export interface RouteInfo {
@@ -292,6 +293,14 @@ export class Arbitoor {
     // Read from cache
     const refPools = filterPoolsWithEitherToken(this.accountProvider.getRefPools(), inputToken, outputToken)
     const jumboPools = filterPoolsWithEitherToken(this.accountProvider.getJumboPools(), inputToken, outputToken)
+
+    // getSpinOutput({
+    //   provider: this.accountProvider,
+    //   inputToken,
+    //   outputToken,
+    //   amount: new Big(inputAmount),
+    //   slippageTolerance,
+    // })
 
     // doesn't account for stable pool
     const refSwapView = await stableSmart(

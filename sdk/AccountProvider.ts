@@ -1,9 +1,12 @@
 import { TokenInfo } from '@tonic-foundation/token-list'
 import _ from 'lodash'
-import { CodeResult, Provider } from 'near-workspaces'
+import { CodeResult, MainnetRpc, Provider } from 'near-workspaces'
+import { Market as SpinMarket, GetOrderbookResponse as SpinOrderbook } from '@spinfi/core'
 import { JUMBO, REF } from './constants'
 import { FTStorageBalance } from './ft-contract'
 import { getPools, STABLE_POOL_IDS, FormattedPool, isStablePool, getStablePool, StablePool, isRatedPool, RATED_POOL_IDS, getRatedPool } from './ref-finance'
+import { Account, connect, Connection, WalletConnection } from 'near-api-js'
+import { getSpinMarkets, getSpinOrderbook } from './spin/spin-api'
 
 export interface AccountProvider {
   /**
@@ -19,6 +22,10 @@ export interface AccountProvider {
   getRefStablePools(): StablePool[]
 
   getJumboPools(): FormattedPool[]
+
+  getSpinMarkets(): SpinMarket[]
+
+  getSpinOrderbooks(): Map<number, SpinOrderbook>
 
   /**
    * Return token metadata. Fallback to RPC call if it's not stored in the token list.
@@ -40,19 +47,24 @@ export class InMemoryProvider implements AccountProvider {
   private refPools: FormattedPool[]
   private refStablePools: StablePool[]
   private jumboPools: FormattedPool[]
+  private spinOrderbooks: Map<number, SpinOrderbook>
 
+  // IndexedDB is more suitable for spin markets and token map
+  private spinMarkets: SpinMarket[]
   private tokenMap: Map<string, TokenInfo>
 
-  constructor (provider: Provider, tokenMap: Map<string, TokenInfo>) {
+  constructor(provider: Provider, tokenMap: Map<string, TokenInfo>, spinMarkets: SpinMarket[]) {
     this.provider = provider
     this.tokenStorageCache = new Map()
     this.refPools = []
     this.refStablePools = []
     this.jumboPools = []
+    this.spinOrderbooks = new Map()
+    this.spinMarkets = spinMarkets
     this.tokenMap = tokenMap
   }
 
-  async fetchPools () {
+  async fetchPools() {
     const pools = _.flatten(await Promise.all([
       getPools(this.provider, REF, 0, 500),
       getPools(this.provider, REF, 500, 500),
@@ -78,6 +90,15 @@ export class InMemoryProvider implements AccountProvider {
       getPools(this.provider, JUMBO, 500, 500),
       getPools(this.provider, JUMBO, 1000, 500)
     ]))
+
+    await Promise.all(this.getSpinMarkets().map(
+      market => getSpinOrderbook(this.provider, market.id)
+        .then(orderbook => {
+          this.spinOrderbooks.set(market.id, orderbook)
+        })
+    ))
+    console.log('got orderbooks', this.spinOrderbooks)
+
   }
 
   /**
@@ -85,7 +106,7 @@ export class InMemoryProvider implements AccountProvider {
    * @param token Token contract
    * @param accountId Account to check
    */
-  async ftFetchStorageBalance (
+  async ftFetchStorageBalance(
     token: string,
     accountId: string
   ) {
@@ -107,26 +128,34 @@ export class InMemoryProvider implements AccountProvider {
     }
   }
 
-  getRefPools () {
+  getRefPools() {
     return this.refPools
   }
 
-  getJumboPools () {
+  getJumboPools() {
     return this.jumboPools
   }
 
-  getRefStablePools () {
+  getRefStablePools() {
     return this.refStablePools
   }
 
-  ftGetStorageBalance (
+  getSpinMarkets(): SpinMarket[] {
+    return this.spinMarkets
+  }
+
+  getSpinOrderbooks() {
+    return this.spinOrderbooks
+  }
+
+  ftGetStorageBalance(
     tokenId: string,
     accountId: string
   ): FTStorageBalance | undefined {
     return this.tokenStorageCache.get(accountId)?.get(tokenId)
   }
 
-  async getTokenMetadata (token: string): Promise<TokenInfo | undefined> {
+  async getTokenMetadata(token: string): Promise<TokenInfo | undefined> {
     const metadata = this.tokenMap.get(token)
     if (metadata) {
       return metadata
