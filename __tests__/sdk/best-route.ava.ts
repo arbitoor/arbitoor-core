@@ -44,15 +44,14 @@ test('best route', async t => {
     slippageTolerance
   })
 
-  t.log('outputs', routes.map(route => {
-    const path = getRoutePath(route.view)
+  // t.log('outputs', routes.map(route => {
+  //   const path = getRoutePath(route.view)
 
-    return {
-      output: route.output.toString(),
-      path: JSON.stringify(path.map(p => p.tokens), undefined, 4),
-      // pools: JSON.stringify(path[0]?.pools, undefined, 4),
-      // pools2: JSON.stringify(path[1]?.pools, undefined, 4),
-    }
-  }))
-
+  //   return {
+  //     output: route.output.toString(),
+  //     path: JSON.stringify(path.map(p => p.tokens), undefined, 4),
+  //     // pools: JSON.stringify(path[0]?.pools, undefined, 4),
+  //     // pools2: JSON.stringify(path[1]?.pools, undefined, 4),
+  //   }
+  // }))
 })

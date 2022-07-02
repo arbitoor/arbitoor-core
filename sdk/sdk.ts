@@ -1,5 +1,5 @@
 import { FunctionCallAction, Transaction } from '@near-wallet-selector/core'
-import { JUMBO, MEMO, REF, REFERRAL_ID, STORAGE_TO_REGISTER_WITH_MFT } from './constants'
+import { JUMBO, MEMO, REF, REFERRAL_ID, SPIN, STORAGE_TO_REGISTER_WITH_MFT } from './constants'
 import { round } from './ft-contract'
 import { percentLess, toReadableNumber, scientificNotationToString, toNonDivisibleNumber } from './numbers'
 import { getExpectedOutputFromActions, stableSmart, EstimateSwapView, PoolMode, filterPoolsWithEitherToken, getHybridStableSmart } from './ref-finance'
@@ -297,14 +297,6 @@ export class Arbitoor {
     const refPools = filterPoolsWithEitherToken(this.accountProvider.getRefPools(), inputToken, outputToken)
     const jumboPools = filterPoolsWithEitherToken(this.accountProvider.getJumboPools(), inputToken, outputToken)
 
-    // getSpinOutput({
-    //   provider: this.accountProvider,
-    //   inputToken,
-    //   outputToken,
-    //   amount: new Big(inputAmount),
-    //   slippageTolerance,
-    // })
-
     // doesn't account for stable pool
     const refSwapView = await stableSmart(
       this.accountProvider,
@@ -354,7 +346,7 @@ export class Arbitoor {
       undefined
     ) as EstimateSwapView[]
 
-    return [refRoute, {
+    const routes = [refRoute, {
       dex: JUMBO,
       view: jumboSwapView,
       output: getExpectedOutputFromActions(
@@ -362,7 +354,24 @@ export class Arbitoor {
         outputToken,
         slippageTolerance
       )
-    }].sort((a, b) => {
+    }]
+
+    const spinEstimate = getSpinOutput({
+      provider: this.accountProvider,
+      inputToken,
+      outputToken,
+      amount: new Big(inputAmount),
+      slippageTolerance
+    })
+    // if (spinEstimate) {
+    //   routes.push({
+    //     dex: SPIN,
+    //     output: spinEstimate.outputAmount,
+    //     view: []
+    //   })
+    // }
+
+    return routes.sort((a, b) => {
       if (a.output.gt(b.output)) {
         return -1
       }

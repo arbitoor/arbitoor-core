@@ -53,7 +53,7 @@ export class InMemoryProvider implements AccountProvider {
   private spinMarkets: SpinMarket[]
   private tokenMap: Map<string, TokenInfo>
 
-  constructor(provider: Provider, tokenMap: Map<string, TokenInfo>, spinMarkets: SpinMarket[]) {
+  constructor (provider: Provider, tokenMap: Map<string, TokenInfo>, spinMarkets: SpinMarket[]) {
     this.provider = provider
     this.tokenStorageCache = new Map()
     this.refPools = []
@@ -64,7 +64,7 @@ export class InMemoryProvider implements AccountProvider {
     this.tokenMap = tokenMap
   }
 
-  async fetchPools() {
+  async fetchPools () {
     const pools = _.flatten(await Promise.all([
       getPools(this.provider, REF, 0, 500),
       getPools(this.provider, REF, 500, 500),
@@ -80,7 +80,7 @@ export class InMemoryProvider implements AccountProvider {
       .filter(pool => !isStablePool(pool.id) && !isRatedPool(pool.id))
 
     this.refStablePools = await Promise.all([
-      ...STABLE_POOL_IDS.map(stablePoolId => getStablePool(this.provider, stablePoolId)),
+      ...STABLE_POOL_IDS.map(stablePoolId => getStablePool(this.provider, stablePoolId))
       // TODO research rated pool
       // ...RATED_SWAP_POOL_IDS.map(ratedPoolId => getRatedPool(this.provider, ratedPoolId)),
     ])
@@ -97,8 +97,6 @@ export class InMemoryProvider implements AccountProvider {
           this.spinOrderbooks.set(market.id, orderbook)
         })
     ))
-    console.log('got orderbooks', this.spinOrderbooks)
-
   }
 
   /**
@@ -106,7 +104,7 @@ export class InMemoryProvider implements AccountProvider {
    * @param token Token contract
    * @param accountId Account to check
    */
-  async ftFetchStorageBalance(
+  async ftFetchStorageBalance (
     token: string,
     accountId: string
   ) {
@@ -128,34 +126,34 @@ export class InMemoryProvider implements AccountProvider {
     }
   }
 
-  getRefPools() {
+  getRefPools () {
     return this.refPools
   }
 
-  getJumboPools() {
+  getJumboPools () {
     return this.jumboPools
   }
 
-  getRefStablePools() {
+  getRefStablePools () {
     return this.refStablePools
   }
 
-  getSpinMarkets(): SpinMarket[] {
+  getSpinMarkets (): SpinMarket[] {
     return this.spinMarkets
   }
 
-  getSpinOrderbooks() {
+  getSpinOrderbooks () {
     return this.spinOrderbooks
   }
 
-  ftGetStorageBalance(
+  ftGetStorageBalance (
     tokenId: string,
     accountId: string
   ): FTStorageBalance | undefined {
     return this.tokenStorageCache.get(accountId)?.get(tokenId)
   }
 
-  async getTokenMetadata(token: string): Promise<TokenInfo | undefined> {
+  async getTokenMetadata (token: string): Promise<TokenInfo | undefined> {
     const metadata = this.tokenMap.get(token)
     if (metadata) {
       return metadata

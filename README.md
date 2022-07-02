@@ -229,3 +229,4 @@ NEAR_ENV=mainnet near view spot.spin-fi.near get_orderbook '{ "market_id": 1, "l
 
     - bid = buy, ask = sell
     - Quantity is in terms of base.
+    - Price: units of base currency (NEAR), per unit of quote currency with decimal places included (USDC)

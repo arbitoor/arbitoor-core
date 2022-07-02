@@ -1,10 +1,10 @@
-import { CodeResult, Provider } from "near-workspaces"
-import { Market as SpinMarket, GetOrderbookResponse as SpinOrderbook } from '@spinfi/core'
-import { SPIN } from "../constants"
-import { AccountProvider } from "../AccountProvider"
-import Big from "big.js"
+import { CodeResult, Provider } from 'near-workspaces'
+import { Market as SpinMarket, GetOrderbookResponse as SpinOrderbook, GetDryRunSwapResponse } from '@spinfi/core'
+import { SPIN } from '../constants'
+import { AccountProvider } from '../AccountProvider'
+import Big from 'big.js'
 
-export async function getSpinMarkets(provider: Provider): Promise<SpinMarket[]> {
+export async function getSpinMarkets (provider: Provider): Promise<SpinMarket[]> {
   const res = await provider.query<CodeResult>({
     request_type: 'call_function',
     account_id: SPIN,
@@ -15,19 +15,19 @@ export async function getSpinMarkets(provider: Provider): Promise<SpinMarket[]> 
   return JSON.parse(Buffer.from(res.result).toString()) as SpinMarket[]
 }
 
-export async function getDryRunSwap({
+export async function getDryRunSwap ({
   provider,
   marketId,
   price,
   token,
-  amount,
+  amount
 } : {
   provider: Provider,
   marketId: number,
   price: string,
   token: string,
   amount: string
-}): Promise<SpinMarket[]> {
+}): Promise<GetDryRunSwapResponse> {
   const res = await provider.query<CodeResult>({
     request_type: 'call_function',
     account_id: SPIN,
@@ -35,17 +35,17 @@ export async function getDryRunSwap({
     args_base64: Buffer.from(JSON.stringify({
       swap: {
         market_id: marketId,
-        price,
+        price
       },
       token,
-      amount,
-     })).toString('base64'),
+      amount
+    })).toString('base64'),
     finality: 'optimistic'
   })
-  return JSON.parse(Buffer.from(res.result).toString()) as SpinMarket[]
+  return JSON.parse(Buffer.from(res.result).toString()) as GetDryRunSwapResponse
 }
 
-export async function getSpinOrderbook(
+export async function getSpinOrderbook (
   provider: Provider,
   marketId: number,
   limit ?: number
@@ -57,18 +57,23 @@ export async function getSpinOrderbook(
     args_base64: Buffer.from(JSON.stringify({
       market_id: marketId,
       limit
-     })).toString('base64'),
+    })).toString('base64'),
     finality: 'optimistic'
   })
   return JSON.parse(Buffer.from(res.result).toString()) as SpinOrderbook
 }
 
-export async function getSpinOutput({
+export interface SpinEstimate {
+  outputAmount: Big;
+  remainingAmount: Big;
+  price: Big;
+}
+
+export function getSpinOutput ({
   provider,
   inputToken,
   outputToken,
-  amount,
-  slippageTolerance,
+  amount
 }: {
   provider: AccountProvider,
   inputToken: string,
@@ -79,22 +84,52 @@ export async function getSpinOutput({
   const markets = provider.getSpinMarkets()
   const orderbooks = provider.getSpinOrderbooks()
   const validMarkets = markets.filter(market => {
-    return (market.base.address === inputToken && market.quote.address === outputToken)
-      || (market.base.address === outputToken && market.quote.address === inputToken)
+    return (market.base.address === inputToken && market.quote.address === outputToken) ||
+      (market.base.address === outputToken && market.quote.address === inputToken)
   })
+
+  let bestResult: SpinEstimate | undefined
 
   for (const market of validMarkets) {
     // estimate output from cached orderbooks
     const orderbook = orderbooks.get(market.id)!
-    const isBid = market.base.address === outputToken
 
-    const swapResult = simulateSwap(orderbook, isBid, amount)
-    console.log('swap result', swapResult?.outputAmount.toString())
+    const isBid = market.base.address === outputToken // true
+    const swapResult = simulateSpinSwap({
+      orderbook,
+      isBid,
+      amount,
+      baseDecimals: market.base.decimal
+    })
+
+    if (!bestResult || swapResult?.outputAmount.gt(bestResult.outputAmount)) {
+      bestResult = swapResult
+    }
   }
+
+  return bestResult
 }
 
-function simulateSwap(orderbook: SpinOrderbook, isBid: boolean, amount: Big) {
+/**
+ * Get the estimated swap output of a Spin orderbook
+ *
+ * TODO round off with lot sizes to improve accuracy
+ * @param param0
+ * @returns
+ */
+export function simulateSpinSwap ({
+  orderbook,
+  isBid,
+  amount,
+  baseDecimals
+} : {
+  orderbook: SpinOrderbook,
+  isBid: boolean,
+  amount: Big,
+  baseDecimals: number
+}): SpinEstimate | undefined {
   const ordersToTraverse = isBid ? orderbook.ask_orders : orderbook.bid_orders
+  const decimalPlaces = new Big(10).pow(baseDecimals)
 
   if (!ordersToTraverse || ordersToTraverse.length === 0) {
     return undefined
@@ -110,7 +145,7 @@ function simulateSwap(orderbook: SpinOrderbook, isBid: boolean, amount: Big) {
     // For bids (buy orders), match against asks (sell orders)
     // Bids are made in quote currency (USDC). To get quantity at each step, divide amount by price
     if (isBid) {
-      const orderQuantity = remainingAmount.div(price)
+      const orderQuantity = decimalPlaces.mul(remainingAmount).div(price)
       if (quantity.gte(orderQuantity)) {
         // order is filled, stop traversal
         remainingAmount = new Big(0)
@@ -118,7 +153,7 @@ function simulateSwap(orderbook: SpinOrderbook, isBid: boolean, amount: Big) {
         break
       } else {
         // use all available quanitity at this step, then move to the next
-        remainingAmount = remainingAmount.sub(quantity.mul(price))
+        remainingAmount = remainingAmount.sub(quantity.mul(price).div(decimalPlaces))
         outputAmount = outputAmount.add(quantity)
       }
     } else {
@@ -126,11 +161,11 @@ function simulateSwap(orderbook: SpinOrderbook, isBid: boolean, amount: Big) {
       // Multiply output with price at each level to get in terms of quote.
       if (quantity.gte(remainingAmount)) {
         remainingAmount = new Big(0)
-        outputAmount = outputAmount.add(remainingAmount.mul(price))
+        outputAmount = outputAmount.add(remainingAmount.mul(price).div(decimalPlaces))
         break
       } else {
         remainingAmount = remainingAmount.sub(quantity)
-        outputAmount = quantity.mul(price)
+        outputAmount = quantity.mul(price).div(decimalPlaces)
       }
     }
   }
