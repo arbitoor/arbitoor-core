@@ -245,13 +245,14 @@ export async function getHybridStableSmart (
 
           const tokenMidMeta = (await accountProvider.getTokenMetadata(tokenMidId))!
 
+          const stablePoolWithBothTokens = filterPoolsWithBothTokens(allStablePools, tokenIn, tokenOut)[0]
           const estimate1 = {
-            ...(isStablePool(tmpPool1.id)
+            ...(isStablePool(tmpPool1.id) && stablePoolWithBothTokens
               ? getStablePoolEstimate({
                 tokenIn,
                 tokenOut: tokenMidId,
                 amountIn,
-                stablePoolInfo: filterPoolsWithBothTokens(allStablePools, tokenIn, tokenOut)[0] as StablePool
+                stablePoolInfo: stablePoolWithBothTokens as StablePool
               })
               : getSinglePoolEstimate(
                 tokenInInfo,
@@ -322,7 +323,6 @@ export async function getHybridStableSmart (
       pool2.token_account_ids.includes(t)
     )!
 
-    // const tokenMidMeta = await ftGetTokenMetadata(tokenMidId);
     const tokenMidMeta = (await accountProvider.getTokenMetadata(tokenMidId))!
 
     const estimate1 = {

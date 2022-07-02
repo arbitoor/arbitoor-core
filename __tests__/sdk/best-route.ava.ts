@@ -22,9 +22,9 @@ test('best route', async t => {
     routeCacheDuration: 1000
   })
 
-  const inputToken = 'wrap.near'
+  const inputToken = 'a0b86991c6218b36c1d19d4a2e9eb0ce3606eb48.factory.bridge.near'
   const outputToken = 'usn'
-  const inputAmount = '100000000000000000000000000'
+  const inputAmount = '100000000'
   const slippageTolerance = 5
 
   // Poll for pools and storage. If storage is set, then storage polling can be stopped.
