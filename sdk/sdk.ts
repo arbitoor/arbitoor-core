@@ -1,5 +1,5 @@
 import { FunctionCallAction, Transaction } from '@near-wallet-selector/core'
-import { JUMBO, MEMO, REF, STORAGE_TO_REGISTER_WITH_MFT } from './constants'
+import { JUMBO, MEMO, REF, REFERRAL_ID, STORAGE_TO_REGISTER_WITH_MFT } from './constants'
 import { round } from './ft-contract'
 import { percentLess, toReadableNumber, scientificNotationToString, toNonDivisibleNumber } from './numbers'
 import { getExpectedOutputFromActions, stableSmart, EstimateSwapView, PoolMode, filterPoolsWithEitherToken, getHybridStableSmart } from './ref-finance'
@@ -131,7 +131,8 @@ export class Arbitoor {
             amount: amountIn,
             msg: JSON.stringify({
               force: 0,
-              actions: swapActions
+              actions: swapActions,
+              referral_id: REFERRAL_ID
             }),
             memo: MEMO
           },
@@ -188,7 +189,8 @@ export class Arbitoor {
                 amount: amountIn,
                 msg: JSON.stringify({
                   force: 0,
-                  actions: actionsList
+                  actions: actionsList,
+                  referral_id: REFERRAL_ID
                 }),
                 memo: MEMO
               },
@@ -262,7 +264,8 @@ export class Arbitoor {
                 amount: amountIn,
                 msg: JSON.stringify({
                   force: 0,
-                  actions: actionsList
+                  actions: actionsList,
+                  referral_id: REFERRAL_ID
                 }),
                 memo: MEMO
               },
