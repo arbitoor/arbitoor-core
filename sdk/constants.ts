@@ -3,6 +3,7 @@ export const REF = 'v2.ref-finance.near'
 export const JUMBO = 'v1.jumbo_exchange.near'
 export const SPIN = 'spot.spin-fi.near'
 export const MEMO = 'arbitoor'
+export const REFERRAL_ID = 'arbitoor.near'
 
 export const STABLE_TOKEN_IDS = [
   'dac17f958d2ee523a2206206994597c13d831ec7.factory.bridge.near',
