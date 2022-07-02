@@ -74,9 +74,9 @@ export class InMemoryProvider implements AccountProvider {
     ])
 
     this.jumboPools = _.flatten(await Promise.all([
-      getPools(this.provider, JUMBO, 0, 500),
-      getPools(this.provider, JUMBO, 500, 500),
-      getPools(this.provider, JUMBO, 1000, 500)
+      getPools(this.provider, JUMBO, 0, 247),
+      // filter out stable pool 248
+      getPools(this.provider, JUMBO, 249, 500),
     ]))
   }
 
