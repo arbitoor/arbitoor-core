@@ -23,6 +23,7 @@ test('best route', async t => {
     routeCacheDuration: 1000
   })
 
+  // USDT->USN is being routed as USDT->USDC->USN on Ref, giving worse rate
   const inputToken = 'usn'
   const outputToken = 'dac17f958d2ee523a2206206994597c13d831ec7.factory.bridge.near'
   const inputAmount = new Big(10).pow(tokenMap.get(inputToken)!.decimals).mul(100).toString()
@@ -46,10 +47,10 @@ test('best route', async t => {
 
     return {
       output: route.output.toString(),
-      dex: route.dex
+      dex: route.dex,
       // path: JSON.stringify(path.map(p => p.tokens), undefined, 4),
-      // pools: JSON.stringify(path[0]?.pools, undefined, 4),
-      // pools2: JSON.stringify(path[1]?.pools, undefined, 4),
+      pools: JSON.stringify(path[0]?.pools, undefined, 4),
+      pools2: JSON.stringify(path[1]?.pools, undefined, 4)
     }
   }))
 })

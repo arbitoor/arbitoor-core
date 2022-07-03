@@ -28,24 +28,17 @@ export const getStablePoolEstimate = ({
   amountIn: string;
   stablePoolInfo: StablePool;
 }) => {
-  console.log('token in', tokenIn, 'out', tokenOut, 'amt in', amountIn, 'pool', stablePoolInfo)
-
-  // wrong token pair for pool 3020. The pool is USN<>USDT, but passed tokens are USDT and USDC/
-  // Issue comes from Ref
   const [amount_swapped, _fee, dy] = getSwappedAmount(
     tokenIn,
     tokenOut,
     amountIn,
     stablePoolInfo
   )
-  console.log('amt swapped', amount_swapped)
 
   const amountOut =
     amount_swapped < 0
       ? '0'
       : toPrecision(scientificNotationToString(amount_swapped.toString()), 0)
-
-  console.log('amount out', amountOut)
 
   const dyOut =
     amount_swapped < 0
@@ -67,9 +60,8 @@ const getSinglePoolEstimate = (
   tokenIn: TokenInfo,
   tokenOut: TokenInfo,
   pool: FormattedPool | StablePool,
-  tokenInAmount: string // NaN passed
+  tokenInAmount: string
 ) => {
-  // console.log('pool', pool, 'token in', tokenInAmount)
   const allocation = toReadableNumber(
     tokenIn.decimals,
     scientificNotationToString(tokenInAmount)
@@ -120,8 +112,7 @@ export async function getHybridStableSmart (
   const [allStablePools, regularPools] = exchange === RefFork.REF
     ? [accountProvider.getRefStablePools(), accountProvider.getRefPools()]
     : [accountProvider.getJumboStablePools(), accountProvider.getJumboPools()]
-  // const allStablePools = accountProvider.getRefStablePools() // good, no Big
-  // const regularPools = accountProvider.getRefPools()
+
   const candidatePools: (FormattedPool | StablePool)[][] = []
 
   function getPools (input: boolean) {
@@ -174,7 +165,6 @@ export async function getHybridStableSmart (
   const { pools1: pools1Right, pools2: pools2Right } = getPools(false)
 
   // find candidate pools
-
   function generateCandidatePools (pools: (FormattedPool | StablePool)[], pools2: (StablePool | FormattedPool)[]) {
     for (const p1 of pools) {
       const middleTokens = p1.token_account_ids.filter((id: string) => id !== tokenIn)
@@ -208,33 +198,38 @@ export async function getHybridStableSmart (
   generateCandidatePools(pools1Right, pools2Right)
 
   if (candidatePools.length > 0) {
-    const BestPoolPair =
-      candidatePools.length === 1
-        ? candidatePools[0]
-        : _.maxBy(candidatePools, async (poolPair) => {
-          // only one pool case, only for stable tokens
-          if (poolPair.length === 1) {
-            if (isStablePool(poolPair[0]!.id, exchange)) {
-              return Number(
-                getStablePoolEstimate({
-                  tokenIn,
-                  tokenOut,
-                  stablePoolInfo: filterPoolsWithBothTokens(allStablePools, tokenIn, tokenOut)[0] as StablePool,
-                  amountIn
-                }).estimate
-              )
-            } else {
-              return Number(
-                getSinglePoolEstimate(
-                  tokenInInfo,
-                  tokenOutInfo,
-                  poolPair[0]!,
-                  parsedAmountIn
-                ).estimate
-              )
-            }
-          }
+    let bestPoolPair: (StablePool | FormattedPool)[] | undefined
 
+    if (candidatePools.length === 1) {
+      bestPoolPair = candidatePools[0]
+    } else {
+      let bestOutput = new Big(0)
+      for (const poolPair of candidatePools) {
+        let output = new Big(0)
+
+        // Direct path case
+        if (poolPair.length === 1) {
+          if (isStablePool(poolPair[0]!.id, exchange)) {
+            output = new Big(
+              getStablePoolEstimate({
+                tokenIn,
+                tokenOut,
+                stablePoolInfo: filterPoolsWithBothTokens(allStablePools, tokenIn, tokenOut)[0] as StablePool,
+                amountIn
+              }).estimate
+            )
+          } else {
+            output = new Big(
+              getSinglePoolEstimate(
+                tokenInInfo,
+                tokenOutInfo,
+                poolPair[0]!,
+                parsedAmountIn
+              ).estimate
+            )
+          }
+        } else {
+          // Intermediary pool case
           const [tmpPool1, tmpPool2] = poolPair as [StablePool | FormattedPool, StablePool | FormattedPool]
           const tokenMidId = poolPair[0]!.token_account_ids.find((t: string) =>
             poolPair[1]!.token_account_ids.includes(t)
@@ -242,17 +237,13 @@ export async function getHybridStableSmart (
 
           const tokenMidMeta = (await accountProvider.getTokenMetadata(tokenMidId))!
 
-          const stablePoolWithBothTokens = filterPoolsWithBothTokens(allStablePools, tokenIn, tokenOut)[0]
+          const stablePoolWithBothTokens = filterPoolsWithBothTokens(allStablePools, tokenIn, tokenMidId)[0]
 
-          // estimate 1.estimate is NaN
-          // console.log('For estimate 1')
-          // console.log('is stable', isStablePool(tmpPool1.id, exchange))
-          // console.log('stable pool with both tokens', stablePoolWithBothTokens)
           const estimate1 = {
             ...(isStablePool(tmpPool1.id, exchange) && stablePoolWithBothTokens
               ? getStablePoolEstimate({
                 tokenIn,
-                tokenOut: tokenMidId,
+                tokenOut: tokenMidId, // token mid is USDC, but pool is USN<>USDT
                 amountIn,
                 stablePoolInfo: stablePoolWithBothTokens as StablePool
               })
@@ -264,13 +255,6 @@ export async function getHybridStableSmart (
               )),
             status: PoolMode.SMART
           }
-
-          // console.log('decimals', tokenMidMeta.decimals, '1 estimate', estimate1.estimate)
-          const estimate2Amount = toNonDivisibleNumber(
-            tokenMidMeta.decimals,
-            estimate1.estimate
-          )
-          // console.log('estimate 2 amt', estimate2Amount)
 
           const estimate2 = {
             ...(isStablePool(tmpPool2.id, exchange)
@@ -291,16 +275,20 @@ export async function getHybridStableSmart (
               )),
             status: PoolMode.SMART
           }
+          output = new Big(estimate2.estimate)
+        }
 
-          return Number(estimate2.estimate)
-        })
+        if (output.gt(bestOutput)) {
+          bestOutput = output
+          bestPoolPair = poolPair
+        }
+      }
+    }
 
-    // one pool case only get best price
+    if (!bestPoolPair) return { actions: [], estimate: '0' }
 
-    if (!BestPoolPair) return { actions: [], estimate: '0' }
-
-    if (BestPoolPair.length === 1) {
-      const bestPool = BestPoolPair[0]!
+    if (bestPoolPair.length === 1) {
+      const bestPool = bestPoolPair[0]!
       const estimate = getPoolEstimate({
         tokenIn: tokenInInfo,
         tokenOut: tokenOutInfo,
@@ -325,7 +313,7 @@ export async function getHybridStableSmart (
     }
 
     // two pool case get best price
-    const [pool1, pool2] = BestPoolPair as [StablePool | FormattedPool, StablePool | FormattedPool]
+    const [pool1, pool2] = bestPoolPair as [StablePool | FormattedPool, StablePool | FormattedPool]
 
     const tokenMidId = pool1.token_account_ids.find((t: string) =>
       pool2.token_account_ids.includes(t)

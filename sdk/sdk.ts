@@ -360,8 +360,6 @@ export class Arbitoor {
       inputAmount
     )
 
-    console.log('jumbo hybrid swap', jumboHybridSwapView.estimate)
-
     const jumboRoute = new Big(jumboHybridSwapView.estimate).gt(jumboSwapOutput)
       ? {
           dex: JUMBO,
