@@ -2,7 +2,7 @@ import { FunctionCallAction, Transaction } from '@near-wallet-selector/core'
 import { JUMBO, MEMO, REF, REFERRAL_ID, STORAGE_TO_REGISTER_WITH_MFT } from './constants'
 import { round } from './ft-contract'
 import { percentLess, toReadableNumber, scientificNotationToString, toNonDivisibleNumber } from './numbers'
-import { getExpectedOutputFromActions, stableSmart, EstimateSwapView, PoolMode, filterPoolsWithEitherToken, getHybridStableSmart } from './ref-finance'
+import { getExpectedOutputFromActions, stableSmart, EstimateSwapView, PoolMode, filterPoolsWithEitherToken, getHybridStableSmart, RefFork } from './ref-finance'
 import { AccountProvider } from './AccountProvider'
 import Big from 'big.js'
 
@@ -313,18 +313,19 @@ export class Arbitoor {
     )
 
     // REF hybrid smart algorithm
-    const hybridSwapView = await getHybridStableSmart(
+    const refHybridSwapView = await getHybridStableSmart(
       this.accountProvider,
+      RefFork.REF,
       inputToken,
       outputToken,
       inputAmount
     )
 
-    const refRoute = new Big(hybridSwapView.estimate).gt(refSwapOutput)
+    const refRoute = new Big(refHybridSwapView.estimate).gt(refSwapOutput)
       ? {
           dex: REF,
-          view: hybridSwapView.actions,
-          output: new Big(hybridSwapView.estimate)
+          view: refHybridSwapView.actions,
+          output: new Big(refHybridSwapView.estimate)
         }
       : {
           dex: REF,
@@ -345,15 +346,39 @@ export class Arbitoor {
       undefined
     ) as EstimateSwapView[]
 
-    return [refRoute, {
-      dex: JUMBO,
-      view: jumboSwapView,
-      output: getExpectedOutputFromActions(
-        jumboSwapView,
-        outputToken,
-        slippageTolerance
-      )
-    }].sort((a, b) => {
+    const jumboSwapOutput = getExpectedOutputFromActions(
+      jumboSwapView,
+      outputToken,
+      slippageTolerance
+    )
+
+    const jumboHybridSwapView = await getHybridStableSmart(
+      this.accountProvider,
+      RefFork.JUMBO,
+      inputToken,
+      outputToken,
+      inputAmount
+    )
+
+    console.log('jumbo hybrid swap', jumboHybridSwapView.estimate)
+
+    const jumboRoute = new Big(jumboHybridSwapView.estimate).gt(jumboSwapOutput)
+      ? {
+          dex: JUMBO,
+          view: jumboHybridSwapView.actions,
+          output: new Big(jumboHybridSwapView.estimate)
+        }
+      : {
+          dex: JUMBO,
+          view: jumboSwapView,
+          output: getExpectedOutputFromActions(
+            jumboSwapView,
+            outputToken,
+            slippageTolerance
+          )
+        }
+
+    return [refRoute, jumboRoute].sort((a, b) => {
       if (a.output.gt(b.output)) {
         return -1
       }

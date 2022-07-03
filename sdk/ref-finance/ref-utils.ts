@@ -2,13 +2,17 @@ import { TokenInfo } from '@tonic-foundation/token-list'
 import Big from 'big.js'
 import { CodeResult, Provider } from 'near-workspaces'
 import { REF } from '../constants'
-import { TokenMetadata } from '../ft-contract'
-import { toReadableNumber, scientificNotationToString, toPrecision, getPoolAllocationPercents } from '../numbers'
+import { toReadableNumber, scientificNotationToString, getPoolAllocationPercents } from '../numbers'
 import { getStablePoolEstimate } from './hybridStableSmart'
-import { getSwappedAmount, isStablePool, STABLE_LP_TOKEN_DECIMALS } from './stable-swap'
-import { FormattedPool, Pool, RefPool, StablePool, EstimateSwapView } from './swap-service'
+import { isStablePool } from './stable-swap'
+import { FormattedPool, RefPool, StablePool, EstimateSwapView } from './swap-service'
 
 const FEE_DIVISOR = 10000
+
+export enum RefFork {
+  REF = 'REF',
+  JUMBO = 'JUMBO',
+}
 
 export function separateRoutes (
   actions: EstimateSwapView[],
@@ -77,10 +81,10 @@ export async function getPool (provider: Provider, exchange: string, poolId: num
   return JSON.parse(Buffer.from(res.result).toString()) as RefPool
 }
 
-export async function getStablePool (provider: Provider, poolId: number) {
+export async function getStablePool (provider: Provider, exchange: string, poolId: number) {
   const pool = await provider.query<CodeResult>({
     request_type: 'call_function',
-    account_id: REF,
+    account_id: exchange,
     method_name: 'get_stable_pool',
     args_base64: Buffer.from(JSON.stringify({ pool_id: poolId })).toString('base64'),
     finality: 'optimistic'
@@ -179,22 +183,24 @@ export const getPoolEstimate = ({
   tokenIn,
   tokenOut,
   amountIn,
-  Pool
+  pool,
+  exchange
 }: {
   tokenIn: TokenInfo;
   tokenOut: TokenInfo;
   amountIn: string;
-  Pool: FormattedPool | StablePool;
+  pool: FormattedPool | StablePool;
+  exchange: RefFork;
 }) => {
-  if (isStablePool(Pool.id)) {
+  if (isStablePool(pool.id, exchange)) {
     return getStablePoolEstimate({
       tokenIn: tokenIn.address,
       tokenOut: tokenOut.address,
       amountIn: toReadableNumber(tokenIn.decimals, amountIn),
-      stablePoolInfo: Pool as StablePool
+      stablePoolInfo: pool as StablePool
     })
   } else {
-    return getSinglePoolEstimate(tokenIn, tokenOut, Pool, amountIn)
+    return getSinglePoolEstimate(tokenIn, tokenOut, pool, amountIn)
   }
 }
 

@@ -21,6 +21,11 @@ export const STABLE_TOKEN_USN_INDEX = {
   'dac17f958d2ee523a2206206994597c13d831ec7.factory.bridge.near': 1
 }
 
+export const JUMBO_STABLE_TOKEN_USN_INDEX = {
+  usn: 0,
+  'dac17f958d2ee523a2206206994597c13d831ec7.factory.bridge.near': 1
+}
+
 export const BTC_STABLE_POOL_INDEX = {
   '2260fac5e5542a773aa44fbcfedf7c193bc2c599.factory.bridge.near': 0,
   '0316eb71485b0ab14103307bf65a021042c6d380.factory.bridge.near': 1
