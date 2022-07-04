@@ -33,6 +33,11 @@ export class Arbitoor {
     this.routeCacheDuration = routeCacheDuration
   }
 
+  /**
+   * Generate NEAR transactions from a swap route
+   * @param param0
+   * @returns
+   */
   async generateTransactions ({
     routeInfo,
     slippageTolerance
@@ -43,8 +48,13 @@ export class Arbitoor {
     const transactions = new Array<Transaction>()
     const tokenInActions = new Array<FunctionCallAction>()
 
-    if ((routeInfo as SpinRouteInfo).marketId) {
-      const { marketId, inputAmount, inputToken, isBid, marketPrice } = routeInfo as SpinRouteInfo
+    if ((routeInfo as SpinRouteInfo).market) {
+      const { market, inputAmount, inputToken, outputToken, isBid, marketPrice } = routeInfo as SpinRouteInfo
+
+      const registerTx = registerToken(this.accountProvider, outputToken, this.user)
+      if (registerTx) {
+        transactions.push(registerTx)
+      }
 
       const limitPrice = isBid
         ? marketPrice.mul(100 + slippageTolerance).div(100)
@@ -58,7 +68,7 @@ export class Arbitoor {
             receiver_id: SPIN,
             amount: inputAmount.toString(),
             msg: JSON.stringify({
-              market_id: marketId,
+              market_id: market.id,
               price: limitPrice.toString()
             }),
             memo: MEMO
@@ -74,17 +84,17 @@ export class Arbitoor {
         actions: tokenInActions
       })
     } else {
-      const { dex: exchange, view: swapsToDo, inputAmount: amountIn } = routeInfo as RefRouteInfo
+      const { dex, view: swapsToDo, inputAmount } = routeInfo as RefRouteInfo
 
       if (swapsToDo.length === 0) {
         return transactions
       }
 
-      const tokenIn = swapsToDo.at(0)!.inputToken!
-      const tokenOut = swapsToDo.at(-1)!.outputToken!
+      const inputToken = swapsToDo.at(0)!.inputToken!
+      const outputToken = swapsToDo.at(-1)!.outputToken!
 
-      const tokenInDecimals = (await this.accountProvider.getTokenMetadata(tokenIn))!.decimals
-      const tokenOutDecimals = (await this.accountProvider.getTokenMetadata(tokenOut))!.decimals
+      const tokenInDecimals = (await this.accountProvider.getTokenMetadata(inputToken))!.decimals
+      const tokenOutDecimals = (await this.accountProvider.getTokenMetadata(outputToken))!.decimals
 
       const isParallelSwap = swapsToDo.every(
         (estimate) => estimate.status === PoolMode.PARALLEL
@@ -105,8 +115,8 @@ export class Arbitoor {
 
           return {
             pool_id: s2d.pool.id,
-            token_in: tokenIn,
-            token_out: tokenOut,
+            token_in: inputToken,
+            token_out: outputToken,
             amount_in: round(
               tokenInDecimals,
               toNonDivisibleNumber(tokenInDecimals, allocation)
@@ -118,7 +128,7 @@ export class Arbitoor {
           }
         })
 
-        const registerTx = registerToken(this.accountProvider, tokenOut, this.user)
+        const registerTx = registerToken(this.accountProvider, outputToken, this.user)
         if (registerTx) {
           transactions.push(registerTx)
         }
@@ -128,8 +138,8 @@ export class Arbitoor {
           params: {
             methodName: 'ft_transfer_call',
             args: {
-              receiver_id: exchange,
-              amount: amountIn,
+              receiver_id: dex,
+              amount: inputAmount,
               msg: JSON.stringify({
                 force: 0,
                 actions: swapActions,
@@ -143,13 +153,13 @@ export class Arbitoor {
         })
 
         transactions.push({
-          receiverId: tokenIn,
+          receiverId: inputToken,
           signerId: this.user,
           actions: tokenInActions
         })
       } else if (isSmartRouteV1Swap) {
         // making sure all actions get included for hybrid stable smart.
-        const registerTx = registerToken(this.accountProvider, tokenOut, this.user)
+        const registerTx = registerToken(this.accountProvider, outputToken, this.user)
         if (registerTx) {
           transactions.push(registerTx)
         }
@@ -160,7 +170,7 @@ export class Arbitoor {
           pool_id: swap1.pool.id,
           token_in: swap1.inputToken,
           token_out: swap1.outputToken,
-          amount_in: amountIn,
+          amount_in: inputAmount,
           min_amount_out: '0'
         })
         const swap2 = swapsToDo[1]
@@ -180,7 +190,7 @@ export class Arbitoor {
         }
 
         transactions.push({
-          receiverId: tokenIn,
+          receiverId: inputToken,
           signerId: this.user,
           actions: [
             {
@@ -188,8 +198,8 @@ export class Arbitoor {
               params: {
                 methodName: 'ft_transfer_call',
                 args: {
-                  receiver_id: exchange,
-                  amount: amountIn,
+                  receiver_id: dex,
+                  amount: inputAmount,
                   msg: JSON.stringify({
                     force: 0,
                     actions: actionsList,
@@ -206,7 +216,7 @@ export class Arbitoor {
         })
       } else {
         // making sure all actions get included.
-        const registerTx = registerToken(this.accountProvider, tokenOut, this.user)
+        const registerTx = registerToken(this.accountProvider, outputToken, this.user)
         if (registerTx) {
           transactions.push(registerTx)
         }
@@ -214,12 +224,12 @@ export class Arbitoor {
         const allSwapsTokens = swapsToDo.map((s) => [s.inputToken, s.outputToken]) // to get the hop tokens
         for (const i in allSwapsTokens) {
           const swapTokens = allSwapsTokens[i]
-          if (swapTokens![0] == tokenIn && swapTokens![1] == tokenOut) {
+          if (swapTokens![0] == inputToken && swapTokens![1] == outputToken) {
             // parallel, direct hop route.
             actionsList.push({
               pool_id: swapsToDo[i]!.pool.id,
-              token_in: tokenIn,
-              token_out: tokenOut,
+              token_in: inputToken,
+              token_out: outputToken,
               amount_in: swapsToDo[i]!.pool.partialAmountIn,
               min_amount_out: round(
                 tokenOutDecimals,
@@ -229,7 +239,7 @@ export class Arbitoor {
                 )
               )
             })
-          } else if (swapTokens![0] == tokenIn) {
+          } else if (swapTokens![0] == inputToken) {
             // first hop in double hop route
             // TODO -- put in a check to make sure this first hop matches with the next (i+1) hop as a second hop.
             actionsList.push({
@@ -258,7 +268,7 @@ export class Arbitoor {
         }
 
         transactions.push({
-          receiverId: tokenIn,
+          receiverId: inputToken,
           signerId: this.user,
           actions: [
             {
@@ -266,8 +276,8 @@ export class Arbitoor {
               params: {
                 methodName: 'ft_transfer_call',
                 args: {
-                  receiver_id: exchange,
-                  amount: amountIn,
+                  receiver_id: dex,
+                  amount: inputAmount,
                   msg: JSON.stringify({
                     force: 0,
                     actions: actionsList,
@@ -391,9 +401,16 @@ export class Arbitoor {
       amount: new Big(inputAmount)
     })
 
-    console.log('spin output', spinOutput)
     if (spinOutput) {
-      routes.push(spinOutput)
+      const outputDecimals = spinOutput.isBid ? spinOutput.market.base.decimal : spinOutput.market.quote.decimal
+      const decimalPlaces = new Big(10).pow(outputDecimals)
+
+      // Account for decimal places.
+      // TODO return in raw form from all algorithms. Forced to convert Spin results because Ref does it.
+      routes.push({
+        ...spinOutput,
+        output: spinOutput!.output.div(decimalPlaces)
+      })
     }
 
     return routes.sort((a, b) => {

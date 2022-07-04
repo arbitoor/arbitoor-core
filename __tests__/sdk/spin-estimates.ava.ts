@@ -3,7 +3,7 @@ import test from 'ava'
 import Big from 'big.js'
 import { MainnetRpc } from 'near-workspaces'
 import { InMemoryProvider } from '../../sdk/AccountProvider'
-import { getDryRunSwap, getSpinMarkets, simulateSpinSwap } from '../../sdk/spin/spin-api'
+import { getDryRunSwap, getSpinMarkets, simulateSpinSwap } from '../../sdk/spin'
 
 test('estimate spin outputs', async t => {
   const tokens = await new TokenListProvider().resolve()

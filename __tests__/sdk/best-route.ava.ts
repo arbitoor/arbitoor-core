@@ -4,7 +4,7 @@ import Big from 'big.js'
 import { MainnetRpc } from 'near-workspaces'
 import { Arbitoor, getRoutePath } from '../../sdk'
 import { InMemoryProvider } from '../../sdk/AccountProvider'
-import { getSpinMarkets } from '../../sdk/spin/spin-api'
+import { getSpinMarkets } from '../../sdk/spin'
 
 test('best route', async t => {
   const user = 'test.near'
@@ -46,26 +46,15 @@ test('best route', async t => {
     inputAmount
   })
 
-  // console.log('routes', routes)
-
   for (const route of routes) {
+    console.log('dex', route.dex, 'output', route.output.toString())
     const txs = await arbitoor.generateTransactions({
       routeInfo: route,
       slippageTolerance
     })
-    console.log('got txs', JSON.stringify(txs, undefined, 4))
+    console.log('txs', JSON.stringify(txs, undefined, 4))
+
+    const path = getRoutePath(route)
+    console.log('path', JSON.stringify(path, undefined, 4))
   }
-
-
-  // t.log('outputs', routes.map(route => {
-  //   const path = getRoutePath(route.view)
-
-  //   return {
-  //     output: route.output.toString(),
-  //     dex: route.dex,
-  //     // path: JSON.stringify(path.map(p => p.tokens), undefined, 4),
-  //     pools: JSON.stringify(path[0]?.pools, undefined, 4),
-  //     pools2: JSON.stringify(path[1]?.pools, undefined, 4)
-  //   }
-  // }))
 })

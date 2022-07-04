@@ -1,7 +1,7 @@
 {
   "name": "@arbitoor/arbitoor-core",
-  "version": "1.1.0",
-  "description": "The Typescript SDK for Comet, a DEX aggregator on NEAR.",
+  "version": "1.2.0",
+  "description": "The Typescript SDK for Arbitoor, a DEX aggregator on NEAR.",
   "main": "dist/cjs/index.js",
   "module": "dist/esm/index.js",
   "scripts": {

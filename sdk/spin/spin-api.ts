@@ -1,8 +1,12 @@
 import { CodeResult, Provider } from 'near-workspaces'
-import { Market as SpinMarket, GetOrderbookResponse as SpinOrderbook, GetDryRunSwapResponse, Spin } from '@spinfi/core'
+import Big from 'big.js'
+import {
+  Market as SpinMarket,
+  GetOrderbookResponse as SpinOrderbook,
+  GetDryRunSwapResponse
+} from '@spinfi/core'
 import { SPIN } from '../constants'
 import { AccountProvider } from '../AccountProvider'
-import Big from 'big.js'
 
 export async function getSpinMarkets (provider: Provider): Promise<SpinMarket[]> {
   const res = await provider.query<CodeResult>({
@@ -15,6 +19,11 @@ export async function getSpinMarkets (provider: Provider): Promise<SpinMarket[]>
   return JSON.parse(Buffer.from(res.result).toString()) as SpinMarket[]
 }
 
+/**
+ * Get swap estimate from RPC
+ * @param param0
+ * @returns
+ */
 export async function getDryRunSwap ({
   provider,
   marketId,
@@ -45,6 +54,13 @@ export async function getDryRunSwap ({
   return JSON.parse(Buffer.from(res.result).toString()) as GetDryRunSwapResponse
 }
 
+/**
+ * Fetch a Spin orderbook from RPC
+ * @param provider
+ * @param marketId
+ * @param limit
+ * @returns
+ */
 export async function getSpinOrderbook (
   provider: Provider,
   marketId: number,
@@ -75,63 +91,13 @@ export interface SpinEstimate {
 }
 
 export interface SpinRouteInfo extends SpinEstimate {
-  marketId: number;
+  dex: string;
+  market: SpinMarket;
   inputToken: string;
+  outputToken: string;
   inputAmount: Big;
   marketPrice: Big;
   isBid: boolean;
-}
-
-export function getSpinOutput ({
-  provider,
-  inputToken,
-  outputToken,
-  amount
-}: {
-  provider: AccountProvider,
-  inputToken: string,
-  outputToken: string,
-  amount: Big,
-}): SpinRouteInfo | undefined {
-  const markets = provider.getSpinMarkets()
-  const orderbooks = provider.getSpinOrderbooks()
-  const validMarkets = markets.filter(market => {
-    return (market.base.address === inputToken && market.quote.address === outputToken) ||
-      (market.base.address === outputToken && market.quote.address === inputToken)
-  })
-
-  let bestResult: SpinRouteInfo | undefined
-
-  for (const market of validMarkets) {
-    // estimate output from cached orderbooks
-    const orderbook = orderbooks.get(market.id)!
-
-    const isBid = market.base.address === outputToken // true
-    const swapResult = simulateSpinSwap({
-      orderbook,
-      isBid,
-      amount,
-      baseDecimals: market.base.decimal
-    })
-
-    if (!bestResult || (swapResult && swapResult.output.gt(bestResult.output))) {
-      const marketPrice = isBid
-        ? orderbook.ask_orders![0]!.price
-        : orderbook.bid_orders![0]!.price
-
-      bestResult = {
-        marketId: market.id,
-        inputToken,
-        inputAmount: amount.sub(swapResult!.remainingAmount),
-        ...swapResult!,
-        marketPrice: new Big(marketPrice),
-        isBid
-      }
-    }
-  }
-
-  // To construct transaction we need- market id, input token, amount, threshold price
-  return bestResult
 }
 
 /**
@@ -184,8 +150,8 @@ export function simulateSpinSwap ({
       // Asks are matched against bids. Both values are in base currency, but output needs to be in quote.
       // Multiply output with price at each level to get in terms of quote.
       if (quantity.gte(remainingAmount)) {
-        remainingAmount = new Big(0)
         outputAmount = outputAmount.add(remainingAmount.mul(price).div(decimalPlaces))
+        remainingAmount = new Big(0)
         break
       } else {
         remainingAmount = remainingAmount.sub(quantity)
@@ -193,5 +159,60 @@ export function simulateSpinSwap ({
       }
     }
   }
-  return { output: outputAmount, remainingAmount, price: price! }
+  // round down to remove decimal places
+  return { output: outputAmount.round(), remainingAmount, price: price! }
+}
+
+export function getSpinOutput ({
+  provider,
+  inputToken,
+  outputToken,
+  amount
+}: {
+  provider: AccountProvider,
+  inputToken: string,
+  outputToken: string,
+  amount: Big,
+}): SpinRouteInfo | undefined {
+  const markets = provider.getSpinMarkets()
+  const orderbooks = provider.getSpinOrderbooks()
+  const validMarkets = markets.filter(market => {
+    return (market.base.address === inputToken && market.quote.address === outputToken) ||
+      (market.base.address === outputToken && market.quote.address === inputToken)
+  })
+
+  let bestResult: SpinRouteInfo | undefined
+
+  for (const market of validMarkets) {
+    // estimate output from cached orderbooks
+    const orderbook = orderbooks.get(market.id)!
+
+    const isBid = market.base.address === outputToken // true
+    const swapResult = simulateSpinSwap({
+      orderbook,
+      isBid,
+      amount,
+      baseDecimals: market.base.decimal
+    })
+
+    if (!bestResult || (swapResult && swapResult.output.gt(bestResult.output))) {
+      const marketPrice = isBid
+        ? orderbook.ask_orders![0]!.price
+        : orderbook.bid_orders![0]!.price
+
+      bestResult = {
+        ...swapResult!,
+        dex: SPIN,
+        market,
+        inputToken,
+        outputToken,
+        inputAmount: amount.sub(swapResult!.remainingAmount),
+        marketPrice: new Big(marketPrice),
+        isBid
+      }
+    }
+  }
+
+  // To construct transaction we need- market id, input token, amount, threshold price
+  return bestResult
 }

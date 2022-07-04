@@ -41,3 +41,14 @@
 
 - Big number error in USDT to USN swaps on Ref.
 - Fix broken max output function in hybrid swap. `_.maxBy` does not support async functions.
+
+## 1.2.0
+
+### Features
+
+- Support Spin swaps.
+
+### Breaking
+
+- `slippageTolerance` field removed from `arbitoor.computeRoutes()`.
+- `computeRoutes()` returns a new `RouteInfo` object that wraps Ref and Spin swap data structures. `generateTransactions()` and `getRoutePath()` need this object as input.

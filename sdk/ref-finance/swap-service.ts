@@ -1,6 +1,6 @@
 import { TokenInfo } from '@tonic-foundation/token-list'
 import Big from 'big.js'
-import { SpinRouteInfo } from '../spin/spin-api'
+import { SpinRouteInfo } from '../spin'
 
 export interface ReservesMap {
   [index: string]: Big;
