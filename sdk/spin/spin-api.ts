@@ -1,5 +1,5 @@
 import { CodeResult, Provider } from 'near-workspaces'
-import { Market as SpinMarket, GetOrderbookResponse as SpinOrderbook, GetDryRunSwapResponse } from '@spinfi/core'
+import { Market as SpinMarket, GetOrderbookResponse as SpinOrderbook, GetDryRunSwapResponse, Spin } from '@spinfi/core'
 import { SPIN } from '../constants'
 import { AccountProvider } from '../AccountProvider'
 import Big from 'big.js'
@@ -64,9 +64,22 @@ export async function getSpinOrderbook (
 }
 
 export interface SpinEstimate {
-  outputAmount: Big;
+  // Output token received
+  output: Big;
+
+  // Unused input amount
   remainingAmount: Big;
+
+  // New price of the market after swapping
   price: Big;
+}
+
+export interface SpinRouteInfo extends SpinEstimate {
+  marketId: number;
+  inputToken: string;
+  inputAmount: Big;
+  marketPrice: Big;
+  isBid: boolean;
 }
 
 export function getSpinOutput ({
@@ -79,8 +92,7 @@ export function getSpinOutput ({
   inputToken: string,
   outputToken: string,
   amount: Big,
-  slippageTolerance: number,
-}) {
+}): SpinRouteInfo | undefined {
   const markets = provider.getSpinMarkets()
   const orderbooks = provider.getSpinOrderbooks()
   const validMarkets = markets.filter(market => {
@@ -88,7 +100,7 @@ export function getSpinOutput ({
       (market.base.address === outputToken && market.quote.address === inputToken)
   })
 
-  let bestResult: SpinEstimate | undefined
+  let bestResult: SpinRouteInfo | undefined
 
   for (const market of validMarkets) {
     // estimate output from cached orderbooks
@@ -102,11 +114,23 @@ export function getSpinOutput ({
       baseDecimals: market.base.decimal
     })
 
-    if (!bestResult || swapResult?.outputAmount.gt(bestResult.outputAmount)) {
-      bestResult = swapResult
+    if (!bestResult || (swapResult && swapResult.output.gt(bestResult.output))) {
+      const marketPrice = isBid
+        ? orderbook.ask_orders![0]!.price
+        : orderbook.bid_orders![0]!.price
+
+      bestResult = {
+        marketId: market.id,
+        inputToken,
+        inputAmount: amount.sub(swapResult!.remainingAmount),
+        ...swapResult!,
+        marketPrice: new Big(marketPrice),
+        isBid
+      }
     }
   }
 
+  // To construct transaction we need- market id, input token, amount, threshold price
   return bestResult
 }
 
@@ -169,5 +193,5 @@ export function simulateSpinSwap ({
       }
     }
   }
-  return { outputAmount, remainingAmount, price: price! }
+  return { output: outputAmount, remainingAmount, price: price! }
 }

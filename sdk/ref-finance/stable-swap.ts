@@ -1,18 +1,28 @@
 import _ from 'lodash'
-import { BTC_STABLE_POOL_ID, BTC_STABLE_POOL_INDEX, CUSD_STABLE_POOL_ID, CUSD_STABLE_POOL_INDEX, STABLE_POOL_ID, STABLE_POOL_USN_ID, STABLE_TOKEN_INDEX, STABLE_TOKEN_USN_INDEX } from '../constants'
+import { number } from 'mathjs'
+import { BTC_STABLE_POOL_ID, BTC_STABLE_POOL_INDEX, CUSD_STABLE_POOL_ID, CUSD_STABLE_POOL_INDEX, JUMBO_STABLE_TOKEN_USN_INDEX, REF, STABLE_POOL_ID, STABLE_POOL_USN_ID, STABLE_TOKEN_INDEX, STABLE_TOKEN_USN_INDEX } from '../constants'
 import { toNonDivisibleNumber } from '../numbers'
+import { RefFork } from './ref-utils'
 import { StablePool } from './swap-service'
 
-export const STABLE_POOL_IDS = [1910, 3020, 3364, 3433]
-export const RATED_POOL_IDS = [3514, 3515] // improved stableswap pools
+export const STABLE_POOLS = {
+  REF: [1910, 3020, 3364, 3433],
+  JUMBO: [248]
+}
+
+export const REF_RATED_POOLS = [3514, 3515] // improved stableswap pools
+
+// export const JUMBO_STABLE_POOLS = [248]
 
 /**
- * Whether a REF pool is a stable one. The ID is compared against the saved list of stable pool IDs.
- * @param id Ref pool ID
+ * Whether a pool is a stable one. The ID is compared against the saved list of stable pool IDs.
+ * @param id Pool ID
+ * @param exchange Fork of Ref
  * @returns
  */
-export function isStablePool (id: number) {
-  return STABLE_POOL_IDS.includes(id)
+export function isStablePool (id: number, exchange: RefFork) {
+  const stablePools = STABLE_POOLS[exchange]
+  return stablePools.includes(id)
 }
 
 /**
@@ -21,12 +31,15 @@ export function isStablePool (id: number) {
  * @returns
  */
 export function isRatedPool (id: number) {
-  return RATED_POOL_IDS.includes(id)
+  return REF_RATED_POOLS.includes(id)
 }
 
 export const STABLE_LP_TOKEN_DECIMALS = 18
 
-export function getStableTokenIndex (stable_pool_id: string | number): { [key: string]: number} | undefined {
+export function getStableTokenIndex (stable_pool_id: string | number, exchange: RefFork): { [key: string]: number} | undefined {
+  if (exchange === RefFork.JUMBO && stable_pool_id === 248) {
+    return JUMBO_STABLE_TOKEN_USN_INDEX
+  }
   const id = stable_pool_id.toString()
   switch (id) {
     case STABLE_POOL_ID.toString():
@@ -129,7 +142,12 @@ export function getSwappedAmount (
   const amp = stablePool.amp
   const trade_fee = stablePool.total_fee
 
-  const STABLE_TOKEN_INDEX = getStableTokenIndex(stablePool.id)!
+  // Fix for Jumbo
+  const dex = stablePool.dex === REF
+    ? RefFork.REF
+    : RefFork.JUMBO
+
+  const STABLE_TOKEN_INDEX = getStableTokenIndex(stablePool.id, dex)!
 
   const in_token_idx = STABLE_TOKEN_INDEX[tokenInId]!
   const out_token_idx = STABLE_TOKEN_INDEX[tokenOutId]!

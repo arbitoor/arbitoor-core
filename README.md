@@ -204,7 +204,7 @@ NEAR_ENV=mainnet near view spot.spin-fi.near get_markets
 ]
 ```
 
-2. Read orderbooks with
+3. Read orderbooks with
 
 ```sh
 NEAR_ENV=mainnet near view spot.spin-fi.near get_orderbook '{ "market_id": 1, "limit": 4 }'
@@ -230,3 +230,16 @@ NEAR_ENV=mainnet near view spot.spin-fi.near get_orderbook '{ "market_id": 1, "l
     - bid = buy, ask = sell
     - Quantity is in terms of base.
     - Price: units of base currency (NEAR), per unit of quote currency with decimal places included (USDC)
+
+4. Swap TX
+
+    1. Price field is for slippage
+    2. Run `ft_transfer_call()` on the input token
+
+```json
+{
+  "receiver_id": "spot.spin-fi.near",
+  "amount": "500000",
+  "msg": "{\"market_id\":2,\"price\":\"1100000\"}"
+}
+```

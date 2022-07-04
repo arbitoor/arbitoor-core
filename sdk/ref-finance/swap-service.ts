@@ -1,5 +1,6 @@
 import { TokenInfo } from '@tonic-foundation/token-list'
 import Big from 'big.js'
+import { SpinRouteInfo } from '../spin/spin-api'
 
 export interface ReservesMap {
   [index: string]: Big;
@@ -69,6 +70,29 @@ export interface RoutePool {
   x?: string;
   y?: string;
 }
+
+export interface RefRouteInfo {
+  dex: string;
+  view: EstimateSwapView[];
+  inputAmount: Big;
+  output: Big;
+}
+
+// A route to reach token 1 to token 2
+export type RouteInfo = RefRouteInfo | SpinRouteInfo
+
+export interface RefForkSwap {
+  exchange: string,
+  views: EstimateSwapView[],
+  amountIn: string,
+}
+
+export interface SpinSwap {
+  marketId: number,
+  inputToken: string,
+}
+
+export type SwapView = RefForkSwap | SpinSwap
 
 export interface EstimateSwapView {
   estimate: string;

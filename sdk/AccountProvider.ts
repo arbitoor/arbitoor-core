@@ -4,7 +4,7 @@ import { CodeResult, MainnetRpc, Provider } from 'near-workspaces'
 import { Market as SpinMarket, GetOrderbookResponse as SpinOrderbook } from '@spinfi/core'
 import { JUMBO, REF } from './constants'
 import { FTStorageBalance } from './ft-contract'
-import { getPools, STABLE_POOL_IDS, FormattedPool, isStablePool, getStablePool, StablePool, isRatedPool, RATED_POOL_IDS, getRatedPool } from './ref-finance'
+import { getPools, FormattedPool, isStablePool, getStablePool, StablePool, isRatedPool, RefFork, STABLE_POOLS } from './ref-finance'
 import { Account, connect, Connection, WalletConnection } from 'near-api-js'
 import { getSpinMarkets, getSpinOrderbook } from './spin/spin-api'
 
@@ -26,6 +26,7 @@ export interface AccountProvider {
   getSpinMarkets(): SpinMarket[]
 
   getSpinOrderbooks(): Map<number, SpinOrderbook>
+  getJumboStablePools(): StablePool[]
 
   /**
    * Return token metadata. Fallback to RPC call if it's not stored in the token list.
@@ -48,6 +49,7 @@ export class InMemoryProvider implements AccountProvider {
   private refStablePools: StablePool[]
   private jumboPools: FormattedPool[]
   private spinOrderbooks: Map<number, SpinOrderbook>
+  private jumboStablePools: StablePool[]
 
   // IndexedDB is more suitable for spin markets and token map
   private spinMarkets: SpinMarket[]
@@ -61,6 +63,7 @@ export class InMemoryProvider implements AccountProvider {
     this.jumboPools = []
     this.spinOrderbooks = new Map()
     this.spinMarkets = spinMarkets
+    this.jumboStablePools = []
     this.tokenMap = tokenMap
   }
 
@@ -77,18 +80,17 @@ export class InMemoryProvider implements AccountProvider {
     ]))
 
     this.refPools = pools
-      .filter(pool => !isStablePool(pool.id) && !isRatedPool(pool.id))
+      .filter(pool => !isStablePool(pool.id, RefFork.REF) && !isRatedPool(pool.id))
 
     this.refStablePools = await Promise.all([
-      ...STABLE_POOL_IDS.map(stablePoolId => getStablePool(this.provider, stablePoolId))
+      ...STABLE_POOLS[RefFork.REF].map(stablePoolId => getStablePool(this.provider, REF, stablePoolId))
       // TODO research rated pool
       // ...RATED_SWAP_POOL_IDS.map(ratedPoolId => getRatedPool(this.provider, ratedPoolId)),
     ])
 
     this.jumboPools = _.flatten(await Promise.all([
-      getPools(this.provider, JUMBO, 0, 500),
-      getPools(this.provider, JUMBO, 500, 500),
-      getPools(this.provider, JUMBO, 1000, 500)
+      getPools(this.provider, JUMBO, 0, 247),
+      getPools(this.provider, JUMBO, 249, 500)
     ]))
 
     await Promise.all(this.getSpinMarkets().map(
@@ -97,6 +99,9 @@ export class InMemoryProvider implements AccountProvider {
           this.spinOrderbooks.set(market.id, orderbook)
         })
     ))
+    this.jumboStablePools = await Promise.all([
+      ...STABLE_POOLS[RefFork.JUMBO].map(stablePoolId => getStablePool(this.provider, JUMBO, stablePoolId))
+    ])
   }
 
   /**
@@ -144,6 +149,10 @@ export class InMemoryProvider implements AccountProvider {
 
   getSpinOrderbooks () {
     return this.spinOrderbooks
+  }
+
+  getJumboStablePools () {
+    return this.jumboStablePools
   }
 
   ftGetStorageBalance (

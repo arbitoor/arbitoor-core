@@ -1,5 +1,6 @@
 import { TokenInfo, TokenListProvider } from '@tonic-foundation/token-list'
 import test from 'ava'
+import Big from 'big.js'
 import { MainnetRpc } from 'near-workspaces'
 import { Arbitoor, getRoutePath } from '../../sdk'
 import { InMemoryProvider } from '../../sdk/AccountProvider'
@@ -27,9 +28,11 @@ test('best route', async t => {
     routeCacheDuration: 1000
   })
 
-  const inputToken = 'a0b86991c6218b36c1d19d4a2e9eb0ce3606eb48.factory.bridge.near'
-  const outputToken = 'usn'
-  const inputAmount = '100000000'
+  // USDT->USN is being routed as USDT->USDC->USN on Ref, giving worse rate
+  const inputToken = 'usn'
+  const outputToken = 'a0b86991c6218b36c1d19d4a2e9eb0ce3606eb48.factory.bridge.near'
+  const inputAmount = new Big(10).pow(tokenMap.get(inputToken)!.decimals).mul(100).toString()
+
   const slippageTolerance = 5
 
   // Poll for pools and storage. If storage is set, then storage polling can be stopped.
@@ -40,18 +43,29 @@ test('best route', async t => {
   const routes = await arbitoor.computeRoutes({
     inputToken,
     outputToken,
-    inputAmount,
-    slippageTolerance
+    inputAmount
   })
+
+  // console.log('routes', routes)
+
+  for (const route of routes) {
+    const txs = await arbitoor.generateTransactions({
+      routeInfo: route,
+      slippageTolerance
+    })
+    console.log('got txs', JSON.stringify(txs, undefined, 4))
+  }
+
 
   // t.log('outputs', routes.map(route => {
   //   const path = getRoutePath(route.view)
 
   //   return {
   //     output: route.output.toString(),
-  //     path: JSON.stringify(path.map(p => p.tokens), undefined, 4),
-  //     // pools: JSON.stringify(path[0]?.pools, undefined, 4),
-  //     // pools2: JSON.stringify(path[1]?.pools, undefined, 4),
+  //     dex: route.dex,
+  //     // path: JSON.stringify(path.map(p => p.tokens), undefined, 4),
+  //     pools: JSON.stringify(path[0]?.pools, undefined, 4),
+  //     pools2: JSON.stringify(path[1]?.pools, undefined, 4)
   //   }
   // }))
 })

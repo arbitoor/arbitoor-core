@@ -46,15 +46,14 @@ test('estimate spin outputs', async t => {
         amount: amount.toString()
       })
 
-      const calculatedEstimate = swapResult?.outputAmount ?? new Big(0)
+      const calculatedEstimate = swapResult?.output ?? new Big(0)
       const dryRunEstimate = new Big(dryRunResult.received)
 
       if (dryRunEstimate.eq(0)) {
         t.assert(calculatedEstimate.eq(0))
       } else {
         const percent = (dryRunEstimate.sub(calculatedEstimate)).abs().mul(100).div(dryRunEstimate)
-        console.log('difference', percent.toString())
-        t.assert(percent.lte(0.005))
+        t.assert(percent.lte(0.00000001))
       }
     }
   }

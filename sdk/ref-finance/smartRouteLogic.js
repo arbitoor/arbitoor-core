@@ -2059,7 +2059,6 @@ export function getExpectedOutputFromActionsORIG(actions, outputToken) {
 export function getExpectedOutputFromActions(
   actions,
   outputToken,
-  slippageTolerance
 ) {
   // TODO: on cross swap case
   // console.log('INSIDE EXPECTED OUTPUT FUNC');

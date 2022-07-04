@@ -30,3 +30,14 @@
 ### Fixes
 
 - Filter out `RATED_SWAP` pools from stablesmart algorithm. Fixes USN swaps on REF.
+
+## 1.1.0
+
+### Features
+
+- Support Jumbo stableswap.
+
+### Fixes
+
+- Big number error in USDT to USN swaps on Ref.
+- Fix broken max output function in hybrid swap. `_.maxBy` does not support async functions.
