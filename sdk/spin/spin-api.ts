@@ -34,6 +34,7 @@ export async function getDryRunSwap ({
   provider: Provider,
   marketId: number,
   price: string,
+  // input token
   token: string,
   amount: string
 }): Promise<GetDryRunSwapResponse> {
@@ -64,7 +65,7 @@ export async function getDryRunSwap ({
 export async function getSpinOrderbook (
   provider: Provider,
   marketId: number,
-  limit ?: number
+  limit: number = 50
 ): Promise<SpinOrderbook> {
   const res = await provider.query<CodeResult>({
     request_type: 'call_function',
@@ -155,7 +156,7 @@ export function simulateSpinSwap ({
         break
       } else {
         remainingAmount = remainingAmount.sub(quantity)
-        outputAmount = quantity.mul(price).div(decimalPlaces)
+        outputAmount = outputAmount.add(quantity.mul(price).div(decimalPlaces))
       }
     }
   }
@@ -194,7 +195,6 @@ export function getSpinOutput ({
       amount,
       baseDecimals: market.base.decimal
     })
-
     if (!bestResult || (swapResult && swapResult.output.gt(bestResult.output))) {
       const marketPrice = isBid
         ? orderbook.ask_orders![0]!.price
