@@ -243,3 +243,26 @@ NEAR_ENV=mainnet near view spot.spin-fi.near get_orderbook '{ "market_id": 1, "l
   "msg": "{\"market_id\":2,\"price\":\"1100000\"}"
 }
 ```
+
+# Tonic integration
+
+- Fetch markets: `J5mggeEGCyXVUibvYTe9ydVBrELECRUu23VRk2TwC2is` is USN/USDC market.
+
+```sh
+curl https://data-api.mainnet.tonic.foundation/api/v1/markets
+```
+
+- Swap using `ft_transfer_call()` on input token
+
+```json
+{
+    "receiver_id": "v1.orderbook.near",
+    "amount" : "100000",
+    "msg": {
+        "type": "Swap",
+        "market_id": 1,
+        "side": "Buy",
+        "min_output_token": 0
+    }
+}
+```
