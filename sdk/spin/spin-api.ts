@@ -8,7 +8,7 @@ import {
 import { SPIN } from '../constants'
 import { AccountProvider } from '../AccountProvider'
 
-export async function getSpinMarkets (provider: Provider): Promise<SpinMarket[]> {
+export async function getSpinMarkets(provider: Provider): Promise<SpinMarket[]> {
   const res = await provider.query<CodeResult>({
     request_type: 'call_function',
     account_id: SPIN,
@@ -24,13 +24,13 @@ export async function getSpinMarkets (provider: Provider): Promise<SpinMarket[]>
  * @param param0
  * @returns
  */
-export async function getDryRunSwap ({
+export async function getDryRunSwap({
   provider,
   marketId,
   price,
   token,
   amount
-} : {
+}: {
   provider: Provider,
   marketId: number,
   price: string,
@@ -62,7 +62,7 @@ export async function getDryRunSwap ({
  * @param limit
  * @returns
  */
-export async function getSpinOrderbook (
+export async function getSpinOrderbook(
   provider: Provider,
   marketId: number,
   limit: number = 50
@@ -80,7 +80,7 @@ export async function getSpinOrderbook (
   return JSON.parse(Buffer.from(res.result).toString()) as SpinOrderbook
 }
 
-export interface SpinEstimate {
+export interface OrderbookEstimate {
   // Output token received
   output: Big;
 
@@ -91,7 +91,7 @@ export interface SpinEstimate {
   price: Big;
 }
 
-export interface SpinRouteInfo extends SpinEstimate {
+export interface SpinRouteInfo extends OrderbookEstimate {
   dex: string;
   market: SpinMarket;
   inputToken: string;
@@ -108,17 +108,17 @@ export interface SpinRouteInfo extends SpinEstimate {
  * @param param0
  * @returns
  */
-export function simulateSpinSwap ({
+export function simulateSpinSwap({
   orderbook,
   isBid,
   amount,
   baseDecimals
-} : {
+}: {
   orderbook: SpinOrderbook,
   isBid: boolean,
   amount: Big,
   baseDecimals: number
-}): SpinEstimate | undefined {
+}): OrderbookEstimate | undefined {
   const ordersToTraverse = isBid ? orderbook.ask_orders : orderbook.bid_orders
   const decimalPlaces = new Big(10).pow(baseDecimals)
 
@@ -164,7 +164,7 @@ export function simulateSpinSwap ({
   return { output: outputAmount.round(), remainingAmount, price: price! }
 }
 
-export function getSpinOutput ({
+export function getSpinOutput({
   provider,
   inputToken,
   outputToken,

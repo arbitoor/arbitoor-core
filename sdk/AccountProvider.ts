@@ -2,6 +2,7 @@ import { TokenInfo } from '@tonic-foundation/token-list'
 import _ from 'lodash'
 import { CodeResult, Provider } from 'near-workspaces'
 import { Market as SpinMarket, GetOrderbookResponse as SpinOrderbook } from '@spinfi/core'
+import { MarketViewV1 as TonicMarket } from "@tonic-foundation/tonic/lib/types/v1"
 import { JUMBO, REF } from './constants'
 import { FTStorageBalance } from './ft-contract'
 import {
@@ -15,6 +16,7 @@ import {
   STABLE_POOLS
 } from './ref-finance'
 import { getSpinOrderbook } from './spin'
+import { getTonicMarkets } from './tonic'
 
 export interface AccountProvider {
   /**
@@ -26,15 +28,15 @@ export interface AccountProvider {
   ftGetStorageBalance(token: string, accountId: string): FTStorageBalance | undefined
 
   getRefPools(): FormattedPool[]
-
   getRefStablePools(): StablePool[]
 
   getJumboPools(): FormattedPool[]
+  getJumboStablePools(): StablePool[]
 
   getSpinMarkets(): SpinMarket[]
-
   getSpinOrderbooks(): Map<number, SpinOrderbook>
-  getJumboStablePools(): StablePool[]
+
+  getTonicMarkets(): TonicMarket[]
 
   /**
    * Return token metadata. Fallback to RPC call if it's not stored in the token list.
@@ -57,13 +59,14 @@ export class InMemoryProvider implements AccountProvider {
   private refStablePools: StablePool[]
   private jumboPools: FormattedPool[]
   private spinOrderbooks: Map<number, SpinOrderbook>
+  private tonicMarkets: TonicMarket[]
   private jumboStablePools: StablePool[]
 
   // IndexedDB is more suitable for spin markets and token map
   private spinMarkets: SpinMarket[]
   private tokenMap: Map<string, TokenInfo>
 
-  constructor (provider: Provider, tokenMap: Map<string, TokenInfo>, spinMarkets: SpinMarket[]) {
+  constructor(provider: Provider, tokenMap: Map<string, TokenInfo>, spinMarkets: SpinMarket[]) {
     this.provider = provider
     this.tokenStorageCache = new Map()
     this.refPools = []
@@ -73,9 +76,10 @@ export class InMemoryProvider implements AccountProvider {
     this.spinMarkets = spinMarkets
     this.jumboStablePools = []
     this.tokenMap = tokenMap
+    this.tonicMarkets = []
   }
 
-  async fetchPools () {
+  async fetchPools() {
     const pools = _.flatten(await Promise.all([
       getPools(this.provider, REF, 0, 500),
       getPools(this.provider, REF, 500, 500),
@@ -100,6 +104,9 @@ export class InMemoryProvider implements AccountProvider {
       getPools(this.provider, JUMBO, 0, 247),
       getPools(this.provider, JUMBO, 249, 500)
     ]))
+    this.jumboStablePools = await Promise.all([
+      ...STABLE_POOLS[RefFork.JUMBO].map(stablePoolId => getStablePool(this.provider, JUMBO, stablePoolId))
+    ])
 
     const spinOrderbooks = await Promise.all(this.getSpinMarkets().map(
       market => getSpinOrderbook(this.provider, market.id)
@@ -109,9 +116,8 @@ export class InMemoryProvider implements AccountProvider {
     ))
     this.spinOrderbooks = new Map(spinOrderbooks)
 
-    this.jumboStablePools = await Promise.all([
-      ...STABLE_POOLS[RefFork.JUMBO].map(stablePoolId => getStablePool(this.provider, JUMBO, stablePoolId))
-    ])
+    // Tonic
+    this.tonicMarkets = await getTonicMarkets(this.provider)
   }
 
   /**
@@ -119,7 +125,7 @@ export class InMemoryProvider implements AccountProvider {
    * @param token Token contract
    * @param accountId Account to check
    */
-  async ftFetchStorageBalance (
+  async ftFetchStorageBalance(
     token: string,
     accountId: string
   ) {
@@ -141,38 +147,42 @@ export class InMemoryProvider implements AccountProvider {
     }
   }
 
-  getRefPools () {
+  getRefPools() {
     return this.refPools
   }
 
-  getJumboPools () {
+  getJumboPools() {
     return this.jumboPools
   }
 
-  getRefStablePools () {
+  getRefStablePools() {
     return this.refStablePools
   }
 
-  getSpinMarkets (): SpinMarket[] {
+  getSpinMarkets(): SpinMarket[] {
     return this.spinMarkets
   }
 
-  getSpinOrderbooks () {
+  getTonicMarkets(): TonicMarket[] {
+    return this.tonicMarkets
+  }
+
+  getSpinOrderbooks(): Map<number, SpinOrderbook> {
     return this.spinOrderbooks
   }
 
-  getJumboStablePools () {
+  getJumboStablePools() {
     return this.jumboStablePools
   }
 
-  ftGetStorageBalance (
+  ftGetStorageBalance(
     tokenId: string,
     accountId: string
   ): FTStorageBalance | undefined {
     return this.tokenStorageCache.get(accountId)?.get(tokenId)
   }
 
-  async getTokenMetadata (token: string): Promise<TokenInfo | undefined> {
+  async getTokenMetadata(token: string): Promise<TokenInfo | undefined> {
     const metadata = this.tokenMap.get(token)
     if (metadata) {
       return metadata

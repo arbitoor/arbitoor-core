@@ -246,7 +246,7 @@ NEAR_ENV=mainnet near view spot.spin-fi.near get_orderbook '{ "market_id": 1, "l
 
 # Tonic integration
 
-- Fetch markets: `J5mggeEGCyXVUibvYTe9ydVBrELECRUu23VRk2TwC2is` is USN/USDC market.
+- Fetch markets: `J5mggeEGCyXVUibvYTe9ydVBrELECRUu23VRk2TwC2is` is USN/USDC market. USN is base, USDC quote.
 
 ```sh
 curl https://data-api.mainnet.tonic.foundation/api/v1/markets
@@ -260,9 +260,16 @@ curl https://data-api.mainnet.tonic.foundation/api/v1/markets
     "amount" : "100000",
     "msg": {
         "type": "Swap",
-        "market_id": 1,
+        "market_id": "J5mggeEGCyXVUibvYTe9ydVBrELECRUu23VRk2TwC2is",
         "side": "Buy",
         "min_output_token": 0
     }
 }
 ```
+
+```sh
+NEAR_ENV=mainnet near call a0b86991c6218b36c1d19d4a2e9eb0ce3606eb48.factory.bridge.near ft_transfer_call '{"receiver_id": "v1.orderbook.near", "amount": "1000000", "msg": "{ \"type\": \"Swap\", \"market_id\": \"J5mggeEGCyXVUibvYTe9ydVBrELECRUu23VRk2TwC2is\", \"side\": \"Buy\", \"min_output_token\": \"0\" }"}' --deposit 0.000000000000000000000001 --accountId monkeyis.near --gas 300000000000000
+```
+
+# TODO
+- examine `TokenType` from Tonic for native near and FTs

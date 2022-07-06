@@ -6,6 +6,7 @@ import { getExpectedOutputFromActions, stableSmart, EstimateSwapView, PoolMode, 
 import { AccountProvider } from './AccountProvider'
 import Big from 'big.js'
 import { getSpinOutput, SpinRouteInfo } from './spin/spin-api'
+import { getTonicOutput } from './tonic'
 
 // Input parameters to generate routes
 export interface RouteParameters {
@@ -412,6 +413,14 @@ export class Arbitoor {
         output: spinOutput!.output.div(decimalPlaces)
       })
     }
+
+    const tonicOutput = getTonicOutput({
+      provider: this.accountProvider,
+      inputToken,
+      outputToken,
+      amount: new Big(inputAmount)
+    })
+    console.log('tonic output', tonicOutput?.output.toString())
 
     return routes.sort((a, b) => {
       if (a.output.gt(b.output)) {
