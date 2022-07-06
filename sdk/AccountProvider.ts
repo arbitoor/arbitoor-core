@@ -101,12 +101,14 @@ export class InMemoryProvider implements AccountProvider {
       getPools(this.provider, JUMBO, 249, 500)
     ]))
 
-    await Promise.all(this.getSpinMarkets().map(
+    const spinOrderbooks = await Promise.all(this.getSpinMarkets().map(
       market => getSpinOrderbook(this.provider, market.id)
         .then(orderbook => {
-          this.spinOrderbooks.set(market.id, orderbook)
+          return [market.id, orderbook] as [number, SpinOrderbook]
         })
     ))
+    this.spinOrderbooks = new Map(spinOrderbooks)
+
     this.jumboStablePools = await Promise.all([
       ...STABLE_POOLS[RefFork.JUMBO].map(stablePoolId => getStablePool(this.provider, JUMBO, stablePoolId))
     ])

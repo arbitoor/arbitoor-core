@@ -52,3 +52,14 @@
 
 - `slippageTolerance` field removed from `arbitoor.computeRoutes()`.
 - `computeRoutes()` returns a new `RouteInfo` object that wraps Ref and Spin swap data structures. `generateTransactions()` and `getRoutePath()` need this object as input.
+
+## 1.2.1
+
+### Fix
+
+- Large ask amounts gave a small output amount. Fixed by adding summation operation for outputs.
+
+### Features
+
+- Fetch more records per orderbook.
+- Optimize orderbook caching code.
