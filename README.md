@@ -243,3 +243,12 @@ NEAR_ENV=mainnet near view spot.spin-fi.near get_orderbook '{ "market_id": 1, "l
   "msg": "{\"market_id\":2,\"price\":\"1100000\"}"
 }
 ```
+
+5. Swap fees
+    - Dry run returns fee amount. `fee` is a part of `received`, and must be subtracted to get the output amount for the user.
+
+    ```sh
+    NEAR_ENV=mainnet near view spot.spin-fi.near dry_run_swap '{"swap":{"market_id":2,"price":"0"},"token":"usn","amount":"1000000000000000000"}'
+
+    { refund: '0', received: '1000000', fee: '400' }
+    ```

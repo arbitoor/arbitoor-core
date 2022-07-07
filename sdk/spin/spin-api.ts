@@ -2,8 +2,7 @@ import { CodeResult, Provider } from 'near-workspaces'
 import Big from 'big.js'
 import {
   Market as SpinMarket,
-  GetOrderbookResponse as SpinOrderbook,
-  GetDryRunSwapResponse
+  GetOrderbookResponse as SpinOrderbook
 } from '@spinfi/core'
 import { SPIN } from '../constants'
 import { AccountProvider } from '../AccountProvider'
@@ -17,6 +16,22 @@ export async function getSpinMarkets (provider: Provider): Promise<SpinMarket[]>
     finality: 'optimistic'
   })
   return JSON.parse(Buffer.from(res.result).toString()) as SpinMarket[]
+}
+
+export interface SpinDryRunResult {
+  /**
+   * Input tokens are refunded so that slippage limit is not crossed.
+   */
+  refund: string;
+  /**
+   * The output amount. It includes the exchange fees.
+   */
+  received: string;
+
+  /**
+   * The exchange fee. Subtract fees from received to get the output amount for the user.
+   */
+  fee: string;
 }
 
 /**
@@ -37,7 +52,7 @@ export async function getDryRunSwap ({
   // input token
   token: string,
   amount: string
-}): Promise<GetDryRunSwapResponse> {
+}): Promise<SpinDryRunResult> {
   const res = await provider.query<CodeResult>({
     request_type: 'call_function',
     account_id: SPIN,
@@ -52,7 +67,7 @@ export async function getDryRunSwap ({
     })).toString('base64'),
     finality: 'optimistic'
   })
-  return JSON.parse(Buffer.from(res.result).toString()) as GetDryRunSwapResponse
+  return JSON.parse(Buffer.from(res.result).toString()) as SpinDryRunResult
 }
 
 /**
@@ -109,18 +124,18 @@ export interface SpinRouteInfo extends SpinEstimate {
  * @returns
  */
 export function simulateSpinSwap ({
+  market,
   orderbook,
   isBid,
   amount,
-  baseDecimals
 }: {
+  market: SpinMarket,
   orderbook: SpinOrderbook,
   isBid: boolean,
   amount: Big,
-  baseDecimals: number
 }): SpinEstimate | undefined {
   const ordersToTraverse = isBid ? orderbook.ask_orders : orderbook.bid_orders
-  const decimalPlaces = new Big(10).pow(baseDecimals)
+  const decimalPlaces = new Big(10).pow(market.base.decimal)
 
   if (!ordersToTraverse || ordersToTraverse.length === 0) {
     return undefined
@@ -160,8 +175,12 @@ export function simulateSpinSwap ({
       }
     }
   }
+  // subtract taker fee
+  const { taker_fee: takerFee, decimals: feeDecimals } = market.fees
+  const feeDecimalPlaces = new Big(10).pow(feeDecimals)
+  outputAmount = outputAmount.mul(feeDecimalPlaces.sub(takerFee)).div(feeDecimalPlaces).round()
   // round down to remove decimal places
-  return { output: outputAmount.round(), remainingAmount, price: price! }
+  return { output: outputAmount, remainingAmount, price: price! }
 }
 
 export function getSpinOutput ({
@@ -206,10 +225,10 @@ export function getSpinOutput ({
     }
 
     const swapResult = simulateSpinSwap({
+      market,
       orderbook,
       isBid,
-      amount,
-      baseDecimals: market.base.decimal
+      amount
     })
     if (!bestResult || (swapResult && swapResult.output.gt(bestResult.output))) {
       const marketPrice = isBid

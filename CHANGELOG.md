@@ -70,3 +70,9 @@
 
 - Limit price for Spin swaps is now a multiple of tick size. Fixes order price precision issue.
 - Enforce quantity limits for input and output amounts on Spin.
+
+## 1.2.3
+
+### Fix
+
+- Subtract taker fee from Spin output.

@@ -30,10 +30,10 @@ test('estimate spin outputs', async t => {
     const isBidArray = [true, false]
     for (const isBid of isBidArray) {
       const swapResult = simulateSpinSwap({
+        market,
         orderbook,
         isBid,
-        amount,
-        baseDecimals: market.base.decimal
+        amount
       })
 
       const priceLimit = isBid ? '4294967295' : '0'
@@ -47,7 +47,7 @@ test('estimate spin outputs', async t => {
       })
 
       const calculatedEstimate = swapResult?.output ?? new Big(0)
-      const dryRunEstimate = new Big(dryRunResult.received)
+      const dryRunEstimate = new Big(dryRunResult.received).sub(dryRunResult.fee)
 
       if (dryRunEstimate.eq(0)) {
         t.assert(calculatedEstimate.eq(0))
