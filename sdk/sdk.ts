@@ -395,8 +395,7 @@ export class Arbitoor {
           inputAmount: new Big(inputAmount)
         }
 
-    // const routes: RouteInfo[] = [refRoute, jumboRoute]
-    const routes: RouteInfo[] = []
+    const routes: RouteInfo[] = [refRoute, jumboRoute]
 
     const spinOutput = getSpinOutput({
       provider: this.accountProvider,

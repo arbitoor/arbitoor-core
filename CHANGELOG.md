@@ -63,3 +63,10 @@
 
 - Fetch more records per orderbook.
 - Optimize orderbook caching code.
+
+## 1.2.2
+
+### Fix
+
+- Limit price for Spin swaps is now a multiple of tick size. Fixes order price precision issue.
+- Enforce quantity limits for input and output amounts on Spin.

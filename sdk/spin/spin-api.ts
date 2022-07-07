@@ -30,7 +30,7 @@ export async function getDryRunSwap ({
   price,
   token,
   amount
-} : {
+}: {
   provider: Provider,
   marketId: number,
   price: string,
@@ -113,7 +113,7 @@ export function simulateSpinSwap ({
   isBid,
   amount,
   baseDecimals
-} : {
+}: {
   orderbook: SpinOrderbook,
   isBid: boolean,
   amount: Big,
@@ -189,6 +189,22 @@ export function getSpinOutput ({
     const orderbook = orderbooks.get(market.id)!
 
     const isBid = market.base.address === outputToken // true
+
+    const {
+      min_base_quantity,
+      max_base_quantity,
+      min_quote_quantity,
+      max_quote_quantity
+    } = market.limits
+
+    // Skip this market if input amount is out of bounds
+    if (
+      (isBid && (amount.gt(max_quote_quantity) || amount.lt(min_quote_quantity))) ||
+      (!isBid && (amount.gt(max_base_quantity) || amount.lt(min_base_quantity)))
+    ) {
+      continue
+    }
+
     const swapResult = simulateSpinSwap({
       orderbook,
       isBid,
@@ -199,6 +215,16 @@ export function getSpinOutput ({
       const marketPrice = isBid
         ? orderbook.ask_orders![0]!.price
         : orderbook.bid_orders![0]!.price
+
+      const output = swapResult!.output
+
+      // Skip this market if output amount is out of bounds
+      if (
+        (isBid && (output.gt(max_base_quantity) || output.lt(min_base_quantity))) ||
+        (!isBid && (output.gt(max_quote_quantity) || output.lt(min_quote_quantity)))
+      ) {
+        continue
+      }
 
       bestResult = {
         ...swapResult!,
