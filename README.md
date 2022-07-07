@@ -243,3 +243,15 @@ NEAR_ENV=mainnet near view spot.spin-fi.near get_orderbook '{ "market_id": 1, "l
   "msg": "{\"market_id\":2,\"price\":\"1100000\"}"
 }
 ```
+
+## Spin issues
+
+1. Order price precision should be greater than tick size
+    - https://explorer.mainnet.near.org/transactions/EoYsfpiLEgst9FUpEJ7CCeb1SPfQqbz97Bne8ERmMuyH
+    - Limit price should be a multiple of tick
+    - USDC to REF swap on market 4 (REF/USDC). This was a bid/buy order.
+    - Tick size is `1000`, but limit price was `285420`
+
+2. Base asset quantity is greater than maximum
+    - https://explorer.mainnet.near.org/transactions/GFrhejsrkFL8ebhRN8oGE7E7wcVFBqB9vue4UxZPSnge
+    - Because of max base and quote quantities?

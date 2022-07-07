@@ -4,7 +4,7 @@ import { round } from './ft-contract'
 import { percentLess, toReadableNumber, scientificNotationToString, toNonDivisibleNumber } from './numbers'
 import { getExpectedOutputFromActions, stableSmart, EstimateSwapView, PoolMode, filterPoolsWithEitherToken, getHybridStableSmart, RefFork, RouteInfo, RefRouteInfo, registerToken } from './ref-finance'
 import { AccountProvider } from './AccountProvider'
-import Big from 'big.js'
+import Big, { RoundingMode } from 'big.js'
 import { getSpinOutput, SpinRouteInfo } from './spin/spin-api'
 
 // Input parameters to generate routes
@@ -56,9 +56,12 @@ export class Arbitoor {
         transactions.push(registerTx)
       }
 
+      const tickSize = new Big(market.limits.tick_size!)
+
+      // Limit price should be a multiple of tick size
       const limitPrice = isBid
-        ? marketPrice.mul(100 + slippageTolerance).div(100)
-        : marketPrice.mul(100 - slippageTolerance).div(100)
+        ? tickSize.mul(marketPrice.mul(100 + slippageTolerance).div(100).div(tickSize).round())
+        : tickSize.mul(marketPrice.mul(100 - slippageTolerance).div(100).div(tickSize).round(undefined, RoundingMode.RoundUp))
 
       tokenInActions.push({
         type: 'FunctionCall',
@@ -392,7 +395,8 @@ export class Arbitoor {
           inputAmount: new Big(inputAmount)
         }
 
-    const routes: RouteInfo[] = [refRoute, jumboRoute]
+    // const routes: RouteInfo[] = [refRoute, jumboRoute]
+    const routes: RouteInfo[] = []
 
     const spinOutput = getSpinOutput({
       provider: this.accountProvider,
