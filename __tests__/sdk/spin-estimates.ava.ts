@@ -3,7 +3,7 @@ import test from 'ava'
 import Big from 'big.js'
 import { MainnetRpc } from 'near-workspaces'
 import { InMemoryProvider } from '../../sdk/AccountProvider'
-import { getDryRunSwap, getSpinMarkets, simulateSpinSwap } from '../../sdk/spin'
+import { getDryRunSwap, simulateSpinSwap } from '../../sdk/spin'
 
 test('estimate spin outputs', async t => {
   const tokens = await new TokenListProvider().resolve()
@@ -13,10 +13,7 @@ test('estimate spin outputs', async t => {
     return map
   }, new Map<string, TokenInfo>())
 
-  // Filter out NEAR based markets until a wrapping solution is found
-  const spinMarkets = (await getSpinMarkets(MainnetRpc))
-
-  const inMemoryProvider = new InMemoryProvider(MainnetRpc, tokenMap, spinMarkets)
+  const inMemoryProvider = new InMemoryProvider(MainnetRpc, tokenMap)
 
   const amount = new Big('100000000')
 
@@ -24,7 +21,7 @@ test('estimate spin outputs', async t => {
   await inMemoryProvider.fetchPools()
 
   const orderbooks = inMemoryProvider.getSpinOrderbooks()
-  for (const market of spinMarkets) {
+  for (const market of inMemoryProvider.getSpinMarkets()) {
     const orderbook = orderbooks.get(market.id)!
 
     const isBidArray = [true, false]

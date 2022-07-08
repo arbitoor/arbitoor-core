@@ -14,7 +14,7 @@ import {
   RefFork,
   STABLE_POOLS
 } from './ref-finance'
-import { getSpinOrderbook } from './spin'
+import { getSpinMarkets, getSpinOrderbook } from './spin'
 
 export interface AccountProvider {
   /**
@@ -63,14 +63,14 @@ export class InMemoryProvider implements AccountProvider {
   private spinMarkets: SpinMarket[]
   private tokenMap: Map<string, TokenInfo>
 
-  constructor (provider: Provider, tokenMap: Map<string, TokenInfo>, spinMarkets: SpinMarket[]) {
+  constructor (provider: Provider, tokenMap: Map<string, TokenInfo>) {
     this.provider = provider
     this.tokenStorageCache = new Map()
     this.refPools = []
     this.refStablePools = []
     this.jumboPools = []
     this.spinOrderbooks = new Map()
-    this.spinMarkets = spinMarkets
+    this.spinMarkets = []
     this.jumboStablePools = []
     this.tokenMap = tokenMap
   }
@@ -101,17 +101,22 @@ export class InMemoryProvider implements AccountProvider {
       getPools(this.provider, JUMBO, 249, 500)
     ]))
 
-    const spinOrderbooks = await Promise.all(this.getSpinMarkets().map(
+    this.jumboStablePools = await Promise.all([
+      ...STABLE_POOLS[RefFork.JUMBO].map(stablePoolId => getStablePool(this.provider, JUMBO, stablePoolId))
+    ])
+
+    if (this.spinMarkets.length === 0) {
+      this.spinMarkets = (await getSpinMarkets(this.provider))
+        .filter(market => market.base.symbol !== 'NEAR' && market.quote.symbol !== 'NEAR')
+    }
+
+    const spinOrderbooks = await Promise.all(this.spinMarkets.map(
       market => getSpinOrderbook(this.provider, market.id)
         .then(orderbook => {
           return [market.id, orderbook] as [number, SpinOrderbook]
         })
     ))
     this.spinOrderbooks = new Map(spinOrderbooks)
-
-    this.jumboStablePools = await Promise.all([
-      ...STABLE_POOLS[RefFork.JUMBO].map(stablePoolId => getStablePool(this.provider, JUMBO, stablePoolId))
-    ])
   }
 
   /**

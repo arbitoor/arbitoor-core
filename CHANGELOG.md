@@ -76,3 +76,14 @@
 ### Fix
 
 - Subtract taker fee from Spin output.
+
+## 1.2.4
+
+### Breaking
+
+- Remove `routeCacheDuration` field from Arbitoor constructor.
+- Remove `spinMarkets` field from inMemoryProvider constructor.
+
+### Features
+
+- `referrer` address can be passed as a parameter.

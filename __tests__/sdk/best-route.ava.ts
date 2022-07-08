@@ -4,7 +4,6 @@ import Big from 'big.js'
 import { MainnetRpc } from 'near-workspaces'
 import { Arbitoor, getRoutePath } from '../../sdk'
 import { InMemoryProvider } from '../../sdk/AccountProvider'
-import { getSpinMarkets } from '../../sdk/spin'
 
 test('best route', async t => {
   const user = 'test.near'
@@ -16,11 +15,7 @@ test('best route', async t => {
     return map
   }, new Map<string, TokenInfo>())
 
-  // Filter out NEAR based markets until a wrapping solution is found
-  const spinMarkets = (await getSpinMarkets(MainnetRpc))
-    .filter(market => market.base.symbol !== 'NEAR' && market.quote.symbol !== 'NEAR')
-
-  const inMemoryProvider = new InMemoryProvider(MainnetRpc, tokenMap, spinMarkets)
+  const inMemoryProvider = new InMemoryProvider(MainnetRpc, tokenMap)
 
   const arbitoor = new Arbitoor({
     accountProvider: inMemoryProvider,
