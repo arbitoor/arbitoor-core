@@ -1,10 +1,26 @@
 import { FunctionCallAction, Transaction } from '@near-wallet-selector/core'
-import { JUMBO, MEMO, REF, REFERRAL_ID, SPIN, STORAGE_TO_REGISTER_WITH_MFT } from './constants'
-import { round } from './ft-contract'
-import { percentLess, toReadableNumber, scientificNotationToString, toNonDivisibleNumber } from './numbers'
-import { getExpectedOutputFromActions, stableSmart, EstimateSwapView, PoolMode, filterPoolsWithEitherToken, getHybridStableSmart, RefFork, RouteInfo, RefRouteInfo, registerToken } from './ref-finance'
-import { AccountProvider } from './AccountProvider'
 import Big, { RoundingMode } from 'big.js'
+import { JUMBO, MEMO, REF, REFERRAL_ID, SPIN } from './constants'
+import { round } from './ft-contract'
+import {
+  percentLess,
+  toReadableNumber,
+  scientificNotationToString,
+  toNonDivisibleNumber
+} from './numbers'
+import {
+  getExpectedOutputFromActions,
+  stableSmart,
+  EstimateSwapView,
+  PoolMode,
+  filterPoolsWithEitherToken,
+  getHybridStableSmart,
+  RefFork,
+  RouteInfo,
+  RefRouteInfo,
+  registerToken
+} from './ref-finance'
+import { AccountProvider } from './AccountProvider'
 import { getSpinOutput, SpinRouteInfo } from './spin/spin-api'
 
 // Input parameters to generate routes
@@ -20,17 +36,18 @@ export class Arbitoor {
 
   // User address for swaps
   user: string
-  // Data is refreshed priodically after this many milliseconds elapse
-  routeCacheDuration: number
 
-  constructor ({ accountProvider, user, routeCacheDuration }: {
+  // Address receiving referral fees
+  referral: string
+
+  constructor ({ accountProvider, user, referral = REFERRAL_ID }: {
     accountProvider: AccountProvider,
     user: string,
-    routeCacheDuration: number,
+    referral?: string
   }) {
     this.accountProvider = accountProvider
     this.user = user
-    this.routeCacheDuration = routeCacheDuration
+    this.referral = referral
   }
 
   /**
@@ -146,7 +163,7 @@ export class Arbitoor {
               msg: JSON.stringify({
                 force: 0,
                 actions: swapActions,
-                referral_id: REFERRAL_ID
+                referral_id: this.referral
               }),
               memo: MEMO
             },
@@ -206,7 +223,7 @@ export class Arbitoor {
                   msg: JSON.stringify({
                     force: 0,
                     actions: actionsList,
-                    referral_id: REFERRAL_ID
+                    referral_id: this.referral
                   }),
                   memo: MEMO
                 },
@@ -284,7 +301,7 @@ export class Arbitoor {
                   msg: JSON.stringify({
                     force: 0,
                     actions: actionsList,
-                    referral_id: REFERRAL_ID
+                    referral_id: this.referral
                   }),
                   memo: MEMO
                 },

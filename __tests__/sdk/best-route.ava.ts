@@ -24,8 +24,7 @@ test('best route', async t => {
 
   const arbitoor = new Arbitoor({
     accountProvider: inMemoryProvider,
-    user,
-    routeCacheDuration: 1000
+    user
   })
 
   // USDT->USN is being routed as USDT->USDC->USN on Ref, giving worse rate

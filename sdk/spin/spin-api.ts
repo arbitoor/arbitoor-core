@@ -127,7 +127,7 @@ export function simulateSpinSwap ({
   market,
   orderbook,
   isBid,
-  amount,
+  amount
 }: {
   market: SpinMarket,
   orderbook: SpinOrderbook,
