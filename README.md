@@ -252,3 +252,25 @@ NEAR_ENV=mainnet near view spot.spin-fi.near get_orderbook '{ "market_id": 1, "l
 
     { refund: '0', received: '1000000', fee: '400' }
     ```
+
+# Wrapped NEAR
+
+1. Wrap
+
+```sh
+near call wrap.near near_deposit --deposit 1 --accountId monkeyis.near
+```
+
+2. Unwrap
+
+```sh
+near call wrap.near near_withdraw '{ "amount": "1000000000000000000000000" }' --accountId monkeyis.near --depositYocto 1
+```
+
+3. TX structure
+    - Input token is wNEAR: Batch near_deposit action with ft_transfer_call. Have a check to prepend the wrapping instruction.
+    - Input token is NEAR on orderbooks: Have a check to call the alternate function.
+    - Output token is NEAR, but swap gives out wNEAR: Append an unwrapping action.
+
+4. Nature of batch transactions
+    -

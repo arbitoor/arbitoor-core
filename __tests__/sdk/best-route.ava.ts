@@ -23,29 +23,29 @@ test('best route', async t => {
   })
 
   // USDT->USN is being routed as USDT->USDC->USN on Ref, giving worse rate
-  const inputToken = 'usn'
-  const outputToken = 'a0b86991c6218b36c1d19d4a2e9eb0ce3606eb48.factory.bridge.near'
-  const inputAmount = new Big(10).pow(tokenMap.get(inputToken)!.decimals).mul(10000).toString()
+  const inputToken = 'wrap.near'
+  const outputToken = 'meta-pool.near'
+  const inputAmount = new Big(10).pow(tokenMap.get(inputToken)!.decimals).mul(100).toString()
 
   const slippageTolerance = 5
 
-  // Poll for pools and storage. If storage is set, then storage polling can be stopped.
-  await inMemoryProvider.ftFetchStorageBalance(outputToken, user)
-  await inMemoryProvider.fetchPools()
+// Poll for pools and storage. If storage is set, then storage polling can be stopped.
+await inMemoryProvider.ftFetchStorageBalance(outputToken, user)
+await inMemoryProvider.fetchPools()
 
   // just returns actions for one swap
-  const routes = await arbitoor.computeRoutes({
-    inputToken,
-    outputToken,
-    inputAmount
-  })
+const routes = await arbitoor.computeRoutes({
+  inputToken,
+  outputToken,
+  inputAmount
+})
 
   for (const route of routes) {
     console.log('dex', route.dex, 'output', route.output.toString())
-    const txs = await arbitoor.generateTransactions({
-      routeInfo: route,
-      slippageTolerance
-    })
+  const txs = await arbitoor.generateTransactions({
+    routeInfo: route,
+    slippageTolerance
+  })
     console.log('txs', JSON.stringify(txs, undefined, 4))
 
     const path = getRoutePath(route)

@@ -261,3 +261,7 @@ export function getSpinOutput ({
   // To construct transaction we need- market id, input token, amount, threshold price
   return bestResult
 }
+
+export async function generateSpinTransactions({}) {
+
+}
