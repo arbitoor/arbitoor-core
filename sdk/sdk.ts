@@ -1,10 +1,26 @@
 import { FunctionCallAction, Transaction } from '@near-wallet-selector/core'
-import { JUMBO, MEMO, REF, REFERRAL_ID, SPIN, STORAGE_TO_REGISTER_WITH_MFT } from './constants'
+import Big, { RoundingMode } from 'big.js'
+import { JUMBO, MEMO, REF, REFERRAL_ID, SPIN } from './constants'
 import { round } from './ft-contract'
-import { percentLess, toReadableNumber, scientificNotationToString, toNonDivisibleNumber } from './numbers'
-import { getExpectedOutputFromActions, stableSmart, EstimateSwapView, PoolMode, filterPoolsWithEitherToken, getHybridStableSmart, RefFork, RouteInfo, RefRouteInfo, registerToken } from './ref-finance'
+import {
+  percentLess,
+  toReadableNumber,
+  scientificNotationToString,
+  toNonDivisibleNumber
+} from './numbers'
+import {
+  getExpectedOutputFromActions,
+  stableSmart,
+  EstimateSwapView,
+  PoolMode,
+  filterPoolsWithEitherToken,
+  getHybridStableSmart,
+  RefFork,
+  RouteInfo,
+  RefRouteInfo,
+  registerToken
+} from './ref-finance'
 import { AccountProvider } from './AccountProvider'
-import Big from 'big.js'
 import { getSpinOutput, SpinRouteInfo } from './spin/spin-api'
 import { getTonicOutput } from './tonic'
 
@@ -21,17 +37,18 @@ export class Arbitoor {
 
   // User address for swaps
   user: string
-  // Data is refreshed priodically after this many milliseconds elapse
-  routeCacheDuration: number
 
-  constructor ({ accountProvider, user, routeCacheDuration }: {
+  // Address receiving referral fees
+  referral: string
+
+  constructor ({ accountProvider, user, referral = REFERRAL_ID }: {
     accountProvider: AccountProvider,
     user: string,
-    routeCacheDuration: number,
+    referral?: string
   }) {
     this.accountProvider = accountProvider
     this.user = user
-    this.routeCacheDuration = routeCacheDuration
+    this.referral = referral
   }
 
   /**
@@ -57,9 +74,12 @@ export class Arbitoor {
         transactions.push(registerTx)
       }
 
+      const tickSize = new Big(market.limits.tick_size!)
+
+      // Limit price should be a multiple of tick size
       const limitPrice = isBid
-        ? marketPrice.mul(100 + slippageTolerance).div(100)
-        : marketPrice.mul(100 - slippageTolerance).div(100)
+        ? tickSize.mul(marketPrice.mul(100 + slippageTolerance).div(100).div(tickSize).round())
+        : tickSize.mul(marketPrice.mul(100 - slippageTolerance).div(100).div(tickSize).round(undefined, RoundingMode.RoundUp))
 
       tokenInActions.push({
         type: 'FunctionCall',
@@ -144,7 +164,7 @@ export class Arbitoor {
               msg: JSON.stringify({
                 force: 0,
                 actions: swapActions,
-                referral_id: REFERRAL_ID
+                referral_id: this.referral
               }),
               memo: MEMO
             },
@@ -204,7 +224,7 @@ export class Arbitoor {
                   msg: JSON.stringify({
                     force: 0,
                     actions: actionsList,
-                    referral_id: REFERRAL_ID
+                    referral_id: this.referral
                   }),
                   memo: MEMO
                 },
@@ -282,7 +302,7 @@ export class Arbitoor {
                   msg: JSON.stringify({
                     force: 0,
                     actions: actionsList,
-                    referral_id: REFERRAL_ID
+                    referral_id: this.referral
                   }),
                   memo: MEMO
                 },
@@ -403,6 +423,7 @@ export class Arbitoor {
     })
 
     if (spinOutput) {
+      console.log('spin isBid', spinOutput.isBid)
       const outputDecimals = spinOutput.isBid ? spinOutput.market.base.decimal : spinOutput.market.quote.decimal
       const decimalPlaces = new Big(10).pow(outputDecimals)
 
@@ -420,7 +441,19 @@ export class Arbitoor {
       outputToken,
       amount: new Big(inputAmount)
     })
-    console.log('tonic output', tonicOutput?.output.toString())
+    if (tonicOutput) {
+      console.log('tonic isBid', tonicOutput.isBid)
+      const outputDecimals = tonicOutput.isBid
+        ? tonicOutput.market.base_token.decimals
+        : tonicOutput.market.quote_token.decimals
+      const decimalPlaces = new Big(10).pow(outputDecimals)
+
+      // Account for decimal places.
+      routes.push({
+        ...tonicOutput,
+        output: tonicOutput!.output.div(decimalPlaces)
+      })
+    }
 
     return routes.sort((a, b) => {
       if (a.output.gt(b.output)) {

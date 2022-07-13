@@ -1,15 +1,19 @@
-import { Provider, CodeResult } from "near-workspaces"
-import { Market } from '@tonic-foundation/tonic'
-import { SPIN, TONIC } from "../constants"
-import { MarketViewV1 as TonicMarket, TokenType, OrderbookViewV1 as TonicOrderbook } from "@tonic-foundation/tonic/lib/types/v1"
-import Big from "big.js"
-import { AccountProvider } from "../AccountProvider"
-import { SpinRouteInfo, simulateSpinSwap, OrderbookEstimate } from "../spin"
+import { Provider, CodeResult } from 'near-workspaces'
+import { SPIN, TONIC } from '../constants'
+import { MarketViewV1, OrderbookViewV1 as TonicOrderbook } from '@tonic-foundation/tonic/lib/types/v1'
+import Big from 'big.js'
+import { AccountProvider } from '../AccountProvider'
+import { OrderbookEstimate } from '../spin'
 
-export async function getTonicMarkets(
+// Fields returned by RPC but missing in Tonic SDK
+export interface TonicMarket extends MarketViewV1 {
+  state: 'Active' | 'Uninitialized',
+}
+
+export async function getTonicMarkets (
   provider: Provider,
   fromIndex: number = 0,
-  limit: number = 100,
+  limit: number = 100
 ): Promise<TonicMarket[]> {
   const res = await provider.query<CodeResult>({
     request_type: 'call_function',
@@ -17,7 +21,7 @@ export async function getTonicMarkets(
     method_name: 'list_markets',
     args_base64: Buffer.from(JSON.stringify({
       from_index: fromIndex,
-      limit,
+      limit
     })).toString('base64'),
     finality: 'optimistic'
   })
@@ -30,25 +34,23 @@ export interface FungibleTokenType {
 }
 
 /**
- * Get the estimated swap output of a Spin orderbook
+ * Get the estimated swap output of a Tonic orderbook
  *
- * TODO round off with lot sizes to improve accuracy
  * @param param0
  * @returns
  */
- export function simulateTonicSwap({
-  orderbook,
+export function simulateTonicSwap ({
+  market,
   isBid,
-  amount,
-  baseDecimals
+  amount
 }: {
-  orderbook: TonicOrderbook,
+  market: TonicMarket,
   isBid: boolean,
   amount: Big,
-  baseDecimals: number
 }): OrderbookEstimate | undefined {
+  const { orderbook, taker_fee_base_rate: takerFee } = market
   const ordersToTraverse = isBid ? orderbook.asks : orderbook.bids
-  const decimalPlaces = new Big(10).pow(baseDecimals)
+  const decimalPlaces = new Big(10).pow(market.base_token.decimals)
 
   if (!ordersToTraverse || ordersToTraverse.length === 0) {
     return undefined
@@ -64,11 +66,14 @@ export interface FungibleTokenType {
     // For bids (buy orders), match against asks (sell orders)
     // Bids are made in quote currency (USDC). To get quantity at each step, divide amount by price
     if (isBid) {
+      // output not rounded (USDC to USN)
       const orderQuantity = decimalPlaces.mul(remainingAmount).div(price)
+      console.log('got order quantity', orderQuantity.toString())
       if (quantity.gte(orderQuantity)) {
         // order is filled, stop traversal
         remainingAmount = new Big(0)
         outputAmount = outputAmount.add(orderQuantity)
+        console.log('finally adding quantity', orderQuantity.toString())
         break
       } else {
         // use all available quanitity at this step, then move to the next
@@ -88,8 +93,16 @@ export interface FungibleTokenType {
       }
     }
   }
+  // output amount for bids should be a multiple of lot size
+
+  // subtract taker fee
+  const feeDecimalPlaces = new Big(10000) // basis point conversion
+  // console.log('tonic output without fee', outputAmount.toString())
+  outputAmount = outputAmount.mul(feeDecimalPlaces.sub(takerFee)).div(feeDecimalPlaces).round()
+  // console.log('tonic output with fee', outputAmount.toString())
+
   // round down to remove decimal places
-  return { output: outputAmount.round(), remainingAmount, price: price! }
+  return { output: outputAmount, remainingAmount, price: price! }
 }
 
 export interface TonicRouteInfo extends OrderbookEstimate {
@@ -102,7 +115,7 @@ export interface TonicRouteInfo extends OrderbookEstimate {
   isBid: boolean;
 }
 
-export function getTonicOutput({
+export function getTonicOutput ({
   provider,
   inputToken,
   outputToken,
@@ -113,15 +126,14 @@ export function getTonicOutput({
   outputToken: string,
   amount: Big,
 }): TonicRouteInfo | undefined {
-
   const markets = provider.getTonicMarkets()
-    const validMarkets = markets.filter(({base_token, quote_token}) => {
-      // Disable native NEAR markets until wrapping is resolved
-      return (base_token.token_type.type === 'ft' && quote_token.token_type.type === 'ft') && (
-        (base_token.token_type.account_id === inputToken && quote_token.token_type.account_id === outputToken)
-        || (base_token.token_type.account_id === outputToken && quote_token.token_type.account_id === inputToken)
-      )
-    })
+  const validMarkets = markets.filter(({ base_token, quote_token }) => {
+    // Disable native NEAR markets until wrapping is resolved
+    return (base_token.token_type.type === 'ft' && quote_token.token_type.type === 'ft') && (
+      (base_token.token_type.account_id === inputToken && quote_token.token_type.account_id === outputToken) ||
+        (base_token.token_type.account_id === outputToken && quote_token.token_type.account_id === inputToken)
+    )
+  })
 
   let bestResult: TonicRouteInfo | undefined
 
@@ -133,10 +145,9 @@ export function getTonicOutput({
 
     const isBid = baseToken.account_id === outputToken
     const swapResult = simulateTonicSwap({
-      orderbook,
+      market,
       isBid,
-      amount,
-      baseDecimals: market.base_token.decimals
+      amount
     })
     if (!bestResult || (swapResult && swapResult.output.gt(bestResult.output))) {
       const marketPrice = isBid
@@ -145,7 +156,7 @@ export function getTonicOutput({
 
       bestResult = {
         ...swapResult!,
-        dex: SPIN,
+        dex: TONIC,
         market,
         inputToken,
         outputToken,

@@ -2,7 +2,6 @@ import { TokenInfo } from '@tonic-foundation/token-list'
 import _ from 'lodash'
 import { CodeResult, Provider } from 'near-workspaces'
 import { Market as SpinMarket, GetOrderbookResponse as SpinOrderbook } from '@spinfi/core'
-import { MarketViewV1 as TonicMarket } from "@tonic-foundation/tonic/lib/types/v1"
 import { JUMBO, REF } from './constants'
 import { FTStorageBalance } from './ft-contract'
 import {
@@ -15,8 +14,8 @@ import {
   RefFork,
   STABLE_POOLS
 } from './ref-finance'
-import { getSpinOrderbook } from './spin'
-import { getTonicMarkets } from './tonic'
+import { getTonicMarkets, TonicMarket } from './tonic'
+import { getSpinMarkets, getSpinOrderbook } from './spin'
 
 export interface AccountProvider {
   /**
@@ -66,20 +65,20 @@ export class InMemoryProvider implements AccountProvider {
   private spinMarkets: SpinMarket[]
   private tokenMap: Map<string, TokenInfo>
 
-  constructor(provider: Provider, tokenMap: Map<string, TokenInfo>, spinMarkets: SpinMarket[]) {
+  constructor (provider: Provider, tokenMap: Map<string, TokenInfo>) {
     this.provider = provider
     this.tokenStorageCache = new Map()
     this.refPools = []
     this.refStablePools = []
     this.jumboPools = []
     this.spinOrderbooks = new Map()
-    this.spinMarkets = spinMarkets
+    this.spinMarkets = []
     this.jumboStablePools = []
     this.tokenMap = tokenMap
     this.tonicMarkets = []
   }
 
-  async fetchPools() {
+  async fetchPools () {
     const pools = _.flatten(await Promise.all([
       getPools(this.provider, REF, 0, 500),
       getPools(this.provider, REF, 500, 500),
@@ -108,7 +107,16 @@ export class InMemoryProvider implements AccountProvider {
       ...STABLE_POOLS[RefFork.JUMBO].map(stablePoolId => getStablePool(this.provider, JUMBO, stablePoolId))
     ])
 
-    const spinOrderbooks = await Promise.all(this.getSpinMarkets().map(
+    this.jumboStablePools = await Promise.all([
+      ...STABLE_POOLS[RefFork.JUMBO].map(stablePoolId => getStablePool(this.provider, JUMBO, stablePoolId))
+    ])
+
+    if (this.spinMarkets.length === 0) {
+      this.spinMarkets = (await getSpinMarkets(this.provider))
+        .filter(market => market.base.symbol !== 'NEAR' && market.quote.symbol !== 'NEAR')
+    }
+
+    const spinOrderbooks = await Promise.all(this.spinMarkets.map(
       market => getSpinOrderbook(this.provider, market.id)
         .then(orderbook => {
           return [market.id, orderbook] as [number, SpinOrderbook]
@@ -117,7 +125,8 @@ export class InMemoryProvider implements AccountProvider {
     this.spinOrderbooks = new Map(spinOrderbooks)
 
     // Tonic
-    this.tonicMarkets = await getTonicMarkets(this.provider)
+    this.tonicMarkets = (await getTonicMarkets(this.provider))
+      .filter(market => market.state === 'Active')
   }
 
   /**
@@ -125,7 +134,7 @@ export class InMemoryProvider implements AccountProvider {
    * @param token Token contract
    * @param accountId Account to check
    */
-  async ftFetchStorageBalance(
+  async ftFetchStorageBalance (
     token: string,
     accountId: string
   ) {
@@ -147,42 +156,42 @@ export class InMemoryProvider implements AccountProvider {
     }
   }
 
-  getRefPools() {
+  getRefPools () {
     return this.refPools
   }
 
-  getJumboPools() {
+  getJumboPools () {
     return this.jumboPools
   }
 
-  getRefStablePools() {
+  getRefStablePools () {
     return this.refStablePools
   }
 
-  getSpinMarkets(): SpinMarket[] {
+  getSpinMarkets (): SpinMarket[] {
     return this.spinMarkets
   }
 
-  getTonicMarkets(): TonicMarket[] {
+  getTonicMarkets (): TonicMarket[] {
     return this.tonicMarkets
   }
 
-  getSpinOrderbooks(): Map<number, SpinOrderbook> {
+  getSpinOrderbooks (): Map<number, SpinOrderbook> {
     return this.spinOrderbooks
   }
 
-  getJumboStablePools() {
+  getJumboStablePools () {
     return this.jumboStablePools
   }
 
-  ftGetStorageBalance(
+  ftGetStorageBalance (
     tokenId: string,
     accountId: string
   ): FTStorageBalance | undefined {
     return this.tokenStorageCache.get(accountId)?.get(tokenId)
   }
 
-  async getTokenMetadata(token: string): Promise<TokenInfo | undefined> {
+  async getTokenMetadata (token: string): Promise<TokenInfo | undefined> {
     const metadata = this.tokenMap.get(token)
     if (metadata) {
       return metadata

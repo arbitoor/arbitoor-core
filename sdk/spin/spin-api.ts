@@ -2,13 +2,12 @@ import { CodeResult, Provider } from 'near-workspaces'
 import Big from 'big.js'
 import {
   Market as SpinMarket,
-  GetOrderbookResponse as SpinOrderbook,
-  GetDryRunSwapResponse
+  GetOrderbookResponse as SpinOrderbook
 } from '@spinfi/core'
 import { SPIN } from '../constants'
 import { AccountProvider } from '../AccountProvider'
 
-export async function getSpinMarkets(provider: Provider): Promise<SpinMarket[]> {
+export async function getSpinMarkets (provider: Provider): Promise<SpinMarket[]> {
   const res = await provider.query<CodeResult>({
     request_type: 'call_function',
     account_id: SPIN,
@@ -19,12 +18,28 @@ export async function getSpinMarkets(provider: Provider): Promise<SpinMarket[]> 
   return JSON.parse(Buffer.from(res.result).toString()) as SpinMarket[]
 }
 
+export interface SpinDryRunResult {
+  /**
+   * Input tokens are refunded so that slippage limit is not crossed.
+   */
+  refund: string;
+  /**
+   * The output amount. It includes the exchange fees.
+   */
+  received: string;
+
+  /**
+   * The exchange fee. Subtract fees from received to get the output amount for the user.
+   */
+  fee: string;
+}
+
 /**
  * Get swap estimate from RPC
  * @param param0
  * @returns
  */
-export async function getDryRunSwap({
+export async function getDryRunSwap ({
   provider,
   marketId,
   price,
@@ -37,7 +52,7 @@ export async function getDryRunSwap({
   // input token
   token: string,
   amount: string
-}): Promise<GetDryRunSwapResponse> {
+}): Promise<SpinDryRunResult> {
   const res = await provider.query<CodeResult>({
     request_type: 'call_function',
     account_id: SPIN,
@@ -52,7 +67,7 @@ export async function getDryRunSwap({
     })).toString('base64'),
     finality: 'optimistic'
   })
-  return JSON.parse(Buffer.from(res.result).toString()) as GetDryRunSwapResponse
+  return JSON.parse(Buffer.from(res.result).toString()) as SpinDryRunResult
 }
 
 /**
@@ -62,7 +77,7 @@ export async function getDryRunSwap({
  * @param limit
  * @returns
  */
-export async function getSpinOrderbook(
+export async function getSpinOrderbook (
   provider: Provider,
   marketId: number,
   limit: number = 50
@@ -108,19 +123,19 @@ export interface SpinRouteInfo extends OrderbookEstimate {
  * @param param0
  * @returns
  */
-export function simulateSpinSwap({
+export function simulateSpinSwap ({
+  market,
   orderbook,
   isBid,
-  amount,
-  baseDecimals
+  amount
 }: {
+  market: SpinMarket,
   orderbook: SpinOrderbook,
   isBid: boolean,
   amount: Big,
-  baseDecimals: number
 }): OrderbookEstimate | undefined {
   const ordersToTraverse = isBid ? orderbook.ask_orders : orderbook.bid_orders
-  const decimalPlaces = new Big(10).pow(baseDecimals)
+  const decimalPlaces = new Big(10).pow(market.base.decimal)
 
   if (!ordersToTraverse || ordersToTraverse.length === 0) {
     return undefined
@@ -160,11 +175,15 @@ export function simulateSpinSwap({
       }
     }
   }
+  // subtract taker fee
+  const { taker_fee: takerFee, decimals: feeDecimals } = market.fees
+  const feeDecimalPlaces = new Big(10).pow(feeDecimals)
+  outputAmount = outputAmount.mul(feeDecimalPlaces.sub(takerFee)).div(feeDecimalPlaces).round()
   // round down to remove decimal places
-  return { output: outputAmount.round(), remainingAmount, price: price! }
+  return { output: outputAmount, remainingAmount, price: price! }
 }
 
-export function getSpinOutput({
+export function getSpinOutput ({
   provider,
   inputToken,
   outputToken,
@@ -189,16 +208,42 @@ export function getSpinOutput({
     const orderbook = orderbooks.get(market.id)!
 
     const isBid = market.base.address === outputToken // true
+
+    const {
+      min_base_quantity,
+      max_base_quantity,
+      min_quote_quantity,
+      max_quote_quantity
+    } = market.limits
+
+    // Skip this market if input amount is out of bounds
+    if (
+      (isBid && (amount.gt(max_quote_quantity) || amount.lt(min_quote_quantity))) ||
+      (!isBid && (amount.gt(max_base_quantity) || amount.lt(min_base_quantity)))
+    ) {
+      continue
+    }
+
     const swapResult = simulateSpinSwap({
+      market,
       orderbook,
       isBid,
-      amount,
-      baseDecimals: market.base.decimal
+      amount
     })
     if (!bestResult || (swapResult && swapResult.output.gt(bestResult.output))) {
       const marketPrice = isBid
         ? orderbook.ask_orders![0]!.price
         : orderbook.bid_orders![0]!.price
+
+      const output = swapResult!.output
+
+      // Skip this market if output amount is out of bounds
+      if (
+        (isBid && (output.gt(max_base_quantity) || output.lt(min_base_quantity))) ||
+        (!isBid && (output.gt(max_quote_quantity) || output.lt(min_quote_quantity)))
+      ) {
+        continue
+      }
 
       bestResult = {
         ...swapResult!,

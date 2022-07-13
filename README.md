@@ -250,6 +250,8 @@ NEAR_ENV=mainnet near view spot.spin-fi.near get_orderbook '{ "market_id": 1, "l
 
 ```sh
 curl https://data-api.mainnet.tonic.foundation/api/v1/markets
+
+near view v1.orderbook.near list_markets '{ "from_index": 0, "limit": 10 }'
 ```
 
 - Swap using `ft_transfer_call()` on input token
@@ -273,3 +275,11 @@ NEAR_ENV=mainnet near call a0b86991c6218b36c1d19d4a2e9eb0ce3606eb48.factory.brid
 
 # TODO
 - examine `TokenType` from Tonic for native near and FTs
+5. Swap fees
+    - Dry run returns fee amount. `fee` is a part of `received`, and must be subtracted to get the output amount for the user.
+
+    ```sh
+    NEAR_ENV=mainnet near view spot.spin-fi.near dry_run_swap '{"swap":{"market_id":2,"price":"0"},"token":"usn","amount":"1000000000000000000"}'
+
+    { refund: '0', received: '1000000', fee: '400' }
+    ```
