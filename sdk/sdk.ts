@@ -1,6 +1,6 @@
 import { FunctionCallAction, Transaction } from '@near-wallet-selector/core'
 import Big, { RoundingMode } from 'big.js'
-import { JUMBO, MEMO, REF, REFERRAL_ID, SPIN } from './constants'
+import { JUMBO, MEMO, REF, REFERRAL_ID, SPIN, TONIC } from './constants'
 import { round } from './ft-contract'
 import {
   percentLess,
@@ -22,7 +22,8 @@ import {
 } from './ref-finance'
 import { AccountProvider } from './AccountProvider'
 import { getSpinOutput, SpinRouteInfo } from './spin/spin-api'
-import { getTonicOutput } from './tonic'
+import { getTonicOutput, TonicRouteInfo } from './tonic'
+import { index } from 'mathjs'
 
 // Input parameters to generate routes
 export interface RouteParameters {
@@ -66,7 +67,7 @@ export class Arbitoor {
     const transactions = new Array<Transaction>()
     const tokenInActions = new Array<FunctionCallAction>()
 
-    if ((routeInfo as SpinRouteInfo).market) {
+    if (routeInfo.dex === SPIN) {
       // inputToken-outputToken are redundant, use isBid to read from market
       const { market, inputAmount, inputToken, outputToken, isBid, marketPrice } = routeInfo as SpinRouteInfo
 
@@ -102,6 +103,83 @@ export class Arbitoor {
 
       transactions.push({
         receiverId: inputToken,
+        signerId: this.user,
+        actions: tokenInActions
+      })
+    } else if (routeInfo.dex === TONIC) {
+      const { inputAmount, legs, output } = routeInfo as TonicRouteInfo
+      const outputMarket = legs.at(-1)!
+
+      const inputToken = (legs[0].isBid
+        ? legs[0].market.quote_token.token_type
+        : legs[0].market.base_token.token_type) as {
+          type: 'ft';
+          account_id: string;
+        }
+
+      const outputToken = (outputMarket.isBid
+        ? outputMarket.market.base_token.token_type
+        : outputMarket.market.quote_token.token_type) as {
+          type: 'ft';
+          account_id: string;
+        }
+
+      const outputAmountMachineFormat = new Big(10).pow(
+        outputMarket.isBid
+          ? outputMarket.market.base_token.decimals
+          : outputMarket.market.quote_token.decimals
+      ).mul(output)
+
+      const registerTx = registerToken(this.accountProvider, outputToken.account_id, this.user)
+      if (registerTx) {
+        transactions.push(registerTx)
+      }
+
+      const tickSize = new Big(outputMarket.market.quote_token.lot_size)
+      let limitPrice: Big
+      if (outputMarket.isBid) {
+        const marketPrice = new Big(outputMarket.market.orderbook.asks[0]!.limit_price)
+        limitPrice = tickSize.mul(marketPrice.mul(100 + slippageTolerance).div(100).div(tickSize).round())
+      } else {
+        const marketPrice = new Big(outputMarket.market.orderbook.bids[0]!.limit_price)
+        tickSize.mul(marketPrice.mul(100 - slippageTolerance).div(100).div(tickSize).round(undefined, RoundingMode.RoundUp))
+      }
+
+      const outputLotSize = outputMarket.isBid
+        ? outputMarket.market.base_token.lot_size
+        : outputMarket.market.quote_token.lot_size
+
+      const minimumOut = outputAmountMachineFormat.mul(100 - slippageTolerance).div(100)
+        .div(outputLotSize).round().mul(outputLotSize) // rounding
+
+      const swapParams = legs.map((leg, i) => {
+        return {
+          type: 'Swap',
+          market_id: leg.market.id,
+          side: leg.isBid ? 'Buy' : 'Sell',
+          minimum_output_amount: legs.length == 2 && i === 0 ? '0' : minimumOut.toString()
+        }
+      })
+      tokenInActions.push({
+        type: 'FunctionCall',
+        params: {
+          methodName: 'ft_transfer_call',
+          args: {
+            receiver_id: TONIC,
+            amount: inputAmount.toString(),
+            msg: JSON.stringify({
+              action: 'Swap',
+              params: swapParams
+            }),
+            memo: MEMO
+          },
+          gas: '180000000000000',
+          deposit: '1'
+        }
+      })
+
+      transactions.push({
+        receiverId: inputToken.account_id,
         signerId: this.user,
         actions: tokenInActions
       })
