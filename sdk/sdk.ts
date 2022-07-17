@@ -67,6 +67,7 @@ export class Arbitoor {
     const tokenInActions = new Array<FunctionCallAction>()
 
     if ((routeInfo as SpinRouteInfo).market) {
+      // inputToken-outputToken are redundant, use isBid to read from market
       const { market, inputAmount, inputToken, outputToken, isBid, marketPrice } = routeInfo as SpinRouteInfo
 
       const registerTx = registerToken(this.accountProvider, outputToken, this.user)
@@ -441,9 +442,10 @@ export class Arbitoor {
       amount: new Big(inputAmount)
     })
     if (tonicOutput) {
-      const outputDecimals = tonicOutput.isBid
-        ? tonicOutput.market.base_token.decimals
-        : tonicOutput.market.quote_token.decimals
+      const outputLeg = tonicOutput.legs.at(-1)!
+      const outputDecimals = outputLeg.isBid
+        ? outputLeg.market.base_token.decimals
+        : outputLeg.market.quote_token.decimals
       const decimalPlaces = new Big(10).pow(outputDecimals)
 
       routes.push({

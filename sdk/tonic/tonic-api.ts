@@ -1,6 +1,6 @@
 import { Provider, CodeResult } from 'near-workspaces'
 import { SPIN, TONIC } from '../constants'
-import { MarketViewV1, OrderbookViewV1 as TonicOrderbook } from '@tonic-foundation/tonic/lib/types/v1'
+import { MarketViewV1 } from '@tonic-foundation/tonic/lib/types/v1'
 import Big from 'big.js'
 import { AccountProvider } from '../AccountProvider'
 import { OrderbookEstimate } from '../spin'
@@ -118,14 +118,15 @@ export function simulateTonicSwap ({
   return { output: outputAmount, remainingAmount, price: price! }
 }
 
+export interface TonicSwapLeg {
+  market: TonicMarket
+  isBid: boolean
+}
+
 export interface TonicRouteInfo extends OrderbookEstimate {
   dex: string;
-  market: TonicMarket;
-  inputToken: string;
-  outputToken: string;
+  legs: [TonicSwapLeg] | [TonicSwapLeg, TonicSwapLeg]
   inputAmount: Big;
-  marketPrice: Big;
-  isBid: boolean;
 }
 
 export function getTonicOutput ({
@@ -140,19 +141,39 @@ export function getTonicOutput ({
   amount: Big,
 }): TonicRouteInfo | undefined {
   const markets = provider.getTonicMarkets()
-  const validMarkets = markets.filter(({ base_token, quote_token }) => {
+
+  const singleHopMarkets: TonicMarket[] = []
+  const inputTokenMarkets: TonicSwapLeg[] = []
+  const outputTokenMarkets: TonicSwapLeg[] = []
+
+  for (const market of markets) {
+    const { base_token, quote_token } = market
+
     // Disable native NEAR markets until wrapping is resolved
-    return (base_token.token_type.type === 'ft' && quote_token.token_type.type === 'ft') && (
-      (base_token.token_type.account_id === inputToken && quote_token.token_type.account_id === outputToken) ||
-        (base_token.token_type.account_id === outputToken && quote_token.token_type.account_id === inputToken)
-    )
-  })
+    if (base_token.token_type.type === 'ft' && quote_token.token_type.type === 'ft') {
+      const baseTokenId = base_token.token_type.account_id
+      const quoteTokenId = quote_token.token_type.account_id
+
+      if ((inputToken === baseTokenId && outputToken === quoteTokenId) ||
+        (outputToken === baseTokenId && inputToken === quoteTokenId)) {
+        singleHopMarkets.push(market)
+      } else if (inputToken === baseTokenId) {
+        inputTokenMarkets.push({ market, isBid: false })
+      } else if (inputToken === quoteTokenId) {
+        inputTokenMarkets.push({ market, isBid: true })
+      } else if (outputToken === baseTokenId) {
+        outputTokenMarkets.push({ market, isBid: true })
+      } else if (outputToken === quoteTokenId) {
+        outputTokenMarkets.push({ market, isBid: false })
+      }
+    }
+  }
 
   let bestResult: TonicRouteInfo | undefined
 
-  for (const market of validMarkets) {
+  // Direct paths
+  for (const market of singleHopMarkets) {
     // estimate output from cached orderbooks
-    const orderbook = market.orderbook
     market.taker_fee_base_rate
     const baseToken = market.base_token.token_type as FungibleTokenType
 
@@ -163,19 +184,55 @@ export function getTonicOutput ({
       amount
     })
     if (!bestResult || (swapResult && swapResult.output.gt(bestResult.output))) {
-      const marketPrice = isBid
-        ? orderbook.asks![0]!.limit_price
-        : orderbook.bids![0]!.limit_price
-
       bestResult = {
         ...swapResult!,
         dex: TONIC,
-        market,
-        inputToken,
-        outputToken,
-        inputAmount: amount.sub(swapResult!.remainingAmount),
-        marketPrice: new Big(marketPrice),
-        isBid
+        legs: [{ market, isBid }],
+        inputAmount: amount.sub(swapResult!.remainingAmount)
+      }
+    }
+  }
+
+  // Two market paths
+  for (const inputMarket of inputTokenMarkets) {
+    for (const outputMarket of outputTokenMarkets) {
+      const { base_token: inputBase, quote_token: inputQuote } = inputMarket.market
+      const { base_token: outputBase, quote_token: outputQuote } = outputMarket.market
+
+      // Native NEAR swaps disabled for now
+      if (
+        inputBase.token_type.type === 'ft' &&
+        inputQuote.token_type.type === 'ft' &&
+        outputBase.token_type.type === 'ft' &&
+        outputQuote.token_type.type === 'ft'
+      ) {
+        if (
+          (inputMarket.isBid && outputMarket.isBid && inputBase.token_type.account_id === outputQuote.token_type.account_id) ||
+          (inputMarket.isBid && !outputMarket.isBid && inputBase.token_type.account_id === outputBase.token_type.account_id) ||
+          (!inputMarket.isBid && outputMarket.isBid && inputQuote.token_type.account_id === outputQuote.token_type.account_id) ||
+          (!inputMarket.isBid && !outputMarket.isBid && inputQuote.token_type.account_id === outputBase.token_type.account_id)
+        ) {
+          const inputSwap = simulateTonicSwap({
+            ...inputMarket,
+            amount
+          })
+
+          if (inputSwap) {
+            const outputSwap = simulateTonicSwap({
+              ...outputMarket,
+              amount: inputSwap.output
+            })
+
+            if (!bestResult || (outputSwap && outputSwap.output.gt(bestResult.output))) {
+              bestResult = {
+                ...outputSwap!,
+                dex: TONIC,
+                legs: [inputMarket, outputMarket],
+                inputAmount: amount.sub(inputSwap.remainingAmount)
+              }
+            }
+          }
+        }
       }
     }
   }

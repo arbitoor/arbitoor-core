@@ -112,6 +112,7 @@ export interface SpinRouteInfo extends OrderbookEstimate {
   inputToken: string;
   outputToken: string;
   inputAmount: Big;
+  // To set slippage limit while generating transaction
   marketPrice: Big;
   isBid: boolean;
 }
