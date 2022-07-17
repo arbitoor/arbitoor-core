@@ -273,13 +273,5 @@ near view v1.orderbook.near list_markets '{ "from_index": 0, "limit": 10 }'
 NEAR_ENV=mainnet near call a0b86991c6218b36c1d19d4a2e9eb0ce3606eb48.factory.bridge.near ft_transfer_call '{"receiver_id": "v1.orderbook.near", "amount": "1000000", "msg": "{ \"type\": \"Swap\", \"market_id\": \"J5mggeEGCyXVUibvYTe9ydVBrELECRUu23VRk2TwC2is\", \"side\": \"Buy\", \"min_output_token\": \"0\" }"}' --deposit 0.000000000000000000000001 --accountId monkeyis.near --gas 300000000000000
 ```
 
-# TODO
-- examine `TokenType` from Tonic for native near and FTs
-5. Swap fees
-    - Dry run returns fee amount. `fee` is a part of `received`, and must be subtracted to get the output amount for the user.
-
-    ```sh
-    NEAR_ENV=mainnet near view spot.spin-fi.near dry_run_swap '{"swap":{"market_id":2,"price":"0"},"token":"usn","amount":"1000000000000000000"}'
-
-    { refund: '0', received: '1000000', fee: '400' }
-    ```
+- Unlike Spin, Tonic always charges taker fee on the quote token.
+- The output amount is rounded as a multiple of lot size. Dust is lost to the exchange.

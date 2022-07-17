@@ -49,6 +49,8 @@ export function simulateTonicSwap ({
   amount: Big,
 }): OrderbookEstimate | undefined {
   const { orderbook, taker_fee_base_rate: takerFee } = market
+  const baseLotSize = market.base_token.lot_size
+  const quoteLotSize = market.quote_token.lot_size
   const ordersToTraverse = isBid ? orderbook.asks : orderbook.bids
   const decimalPlaces = new Big(10).pow(market.base_token.decimals)
 
@@ -58,8 +60,16 @@ export function simulateTonicSwap ({
 
   let price: Big
 
-  let remainingAmount = amount
   let outputAmount = new Big(0)
+  let remainingAmount = amount
+
+  // Tonic charges taker fee on the quote asset
+  if (isBid) {
+    // subtract fee from input emount
+    remainingAmount = remainingAmount.mul(10000 - takerFee).div(10000)
+  }
+  // else subtract from output amount
+
   for (const order of ordersToTraverse) {
     const quantity = new Big(order.open_quantity)
     price = new Big(order.limit_price)
@@ -67,13 +77,15 @@ export function simulateTonicSwap ({
     // Bids are made in quote currency (USDC). To get quantity at each step, divide amount by price
     if (isBid) {
       // output not rounded (USDC to USN)
-      const orderQuantity = decimalPlaces.mul(remainingAmount).div(price)
-      console.log('got order quantity', orderQuantity.toString())
+      const orderQuantity = decimalPlaces.mul(remainingAmount).div(price).round()
       if (quantity.gte(orderQuantity)) {
         // order is filled, stop traversal
-        remainingAmount = new Big(0)
-        outputAmount = outputAmount.add(orderQuantity)
-        console.log('finally adding quantity', orderQuantity.toString())
+        const baseLotsFilled = orderQuantity.div(baseLotSize).round()
+        const roundedQuantity = baseLotsFilled.mul(baseLotSize)
+
+        outputAmount = outputAmount.add(roundedQuantity)
+        remainingAmount = orderQuantity.mod(baseLotSize).mul(price).div(decimalPlaces).round()
+
         break
       } else {
         // use all available quanitity at this step, then move to the next
@@ -93,15 +105,16 @@ export function simulateTonicSwap ({
       }
     }
   }
+
+  if (!isBid) {
+    // subtract fee from input emount
+    outputAmount = outputAmount.mul(10000 - takerFee).div(10000)
+  }
+
   // output amount for bids should be a multiple of lot size
+  const lotSize = isBid ? baseLotSize : quoteLotSize
+  outputAmount = outputAmount.div(lotSize).round().mul(lotSize)
 
-  // subtract taker fee
-  const feeDecimalPlaces = new Big(10000) // basis point conversion
-  // console.log('tonic output without fee', outputAmount.toString())
-  outputAmount = outputAmount.mul(feeDecimalPlaces.sub(takerFee)).div(feeDecimalPlaces).round()
-  // console.log('tonic output with fee', outputAmount.toString())
-
-  // round down to remove decimal places
   return { output: outputAmount, remainingAmount, price: price! }
 }
 

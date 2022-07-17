@@ -423,7 +423,6 @@ export class Arbitoor {
     })
 
     if (spinOutput) {
-      console.log('spin isBid', spinOutput.isBid)
       const outputDecimals = spinOutput.isBid ? spinOutput.market.base.decimal : spinOutput.market.quote.decimal
       const decimalPlaces = new Big(10).pow(outputDecimals)
 
@@ -442,13 +441,11 @@ export class Arbitoor {
       amount: new Big(inputAmount)
     })
     if (tonicOutput) {
-      console.log('tonic isBid', tonicOutput.isBid)
       const outputDecimals = tonicOutput.isBid
         ? tonicOutput.market.base_token.decimals
         : tonicOutput.market.quote_token.decimals
       const decimalPlaces = new Big(10).pow(outputDecimals)
 
-      // Account for decimal places.
       routes.push({
         ...tonicOutput,
         output: tonicOutput!.output.div(decimalPlaces)
