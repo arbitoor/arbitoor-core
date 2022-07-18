@@ -23,8 +23,8 @@ test('best route', async t => {
   })
 
   // USDT->USN is being routed as USDT->USDC->USN on Ref, giving worse rate
-  const inputToken = 'aaaaaa20d9e0e2461697782ef11675f668207961.factory.bridge.near'
-  // 'a0b86991c6218b36c1d19d4a2e9eb0ce3606eb48.factory.bridge.near'
+  const inputToken = 'a0b86991c6218b36c1d19d4a2e9eb0ce3606eb48.factory.bridge.near'
+  // 'aaaaaa20d9e0e2461697782ef11675f668207961.factory.bridge.near'
   const outputToken = 'usn'
   const inputAmount = new Big(10).pow(tokenMap.get(inputToken)!.decimals).mul(1).toString()
 
@@ -49,7 +49,7 @@ test('best route', async t => {
     })
     console.log('txs', JSON.stringify(txs, undefined, 4))
 
-    // const path = getRoutePath(route)
-    // console.log('path', JSON.stringify(path, undefined, 4))
+    const path = getRoutePath(route)
+    console.log('path', JSON.stringify(path, undefined, 4))
   }
 })

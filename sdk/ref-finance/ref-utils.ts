@@ -1,15 +1,13 @@
 import { FunctionCallAction, Transaction } from '@near-wallet-selector/core'
 import { TokenInfo } from '@tonic-foundation/token-list'
 import Big from 'big.js'
-import { Market as SpinMarket } from '@spinfi/core'
 import { CodeResult, Provider } from 'near-workspaces'
 import { AccountProvider } from '../AccountProvider'
-import { REF, SPIN, STORAGE_TO_REGISTER_WITH_MFT } from '../constants'
-import { toReadableNumber, scientificNotationToString, getPoolAllocationPercents } from '../numbers'
-import { SpinRouteInfo } from '../spin'
+import { REF, STORAGE_TO_REGISTER_WITH_MFT } from '../constants'
+import { toReadableNumber, scientificNotationToString } from '../numbers'
 import { getStablePoolEstimate } from './hybridStableSmart'
 import { isStablePool } from './stable-swap'
-import { FormattedPool, RefPool, StablePool, EstimateSwapView, RouteInfo, RefRouteInfo, Pool } from './swap-service'
+import { FormattedPool, RefPool, StablePool, EstimateSwapView } from './swap-service'
 
 const FEE_DIVISOR = 10000
 
@@ -205,63 +203,6 @@ export const getPoolEstimate = ({
     })
   } else {
     return getSinglePoolEstimate(tokenIn, tokenOut, pool, amountIn)
-  }
-}
-
-export interface RouteLeg {
-  tokens: [string, string] | [string, string, string];
-  percentage: string;
-  pools: (StablePool | Pool | SpinMarket)[];
-  dex: string;
-}
-
-/**
- * Returns a JS object representing a swap path. Each route can have one or more pools.
- * The percentage split across each route is also returned.
- *
- * Reference- https://github.com/ref-finance/ref-ui/blob/807dad2e1aa786adcb4cb7750de38258480b75d8/src/components/swap/CrossSwapCard.tsx#L160
- *
- * @param routeInfo
- * @returns Dex name, tokens, percentage split and pools per route.
- */
-export function getRoutePath (routeInfo: RouteInfo): RouteLeg[] {
-  if ((routeInfo as SpinRouteInfo).market) {
-    const { inputToken, outputToken, market } = routeInfo as SpinRouteInfo
-    return [{
-      tokens: [inputToken, outputToken],
-      percentage: '100',
-      pools: [market],
-      dex: SPIN
-    }]
-  } else {
-    const { view: swapsToDo, dex } = routeInfo as RefRouteInfo
-
-    if (swapsToDo.length === 0) {
-      return []
-    }
-
-    const inputToken = swapsToDo.at(0)!.inputToken!
-    const outputToken = swapsToDo.at(-1)!.outputToken!
-    // A route can have two hops at max
-    const routes = separateRoutes(
-      swapsToDo,
-      swapsToDo.at(-1)!.outputToken!
-    ) as ([EstimateSwapView] | [EstimateSwapView, EstimateSwapView])[]
-
-    const firstPools = routes?.map((route) => route[0]!.pool)
-    const percents = getPoolAllocationPercents(firstPools)
-    return routes.map((route, index) => {
-      const tokens: [string, string] | [string, string, string] = route.length === 1
-        ? [inputToken, outputToken]
-        : [inputToken, route[0].outputToken!, outputToken]
-
-      return {
-        tokens,
-        percentage: percents[index]!,
-        pools: route.map(routePool => routePool.pool),
-        dex
-      }
-    })
   }
 }
 
