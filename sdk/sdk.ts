@@ -157,7 +157,7 @@ export class Arbitoor {
           type: 'Swap',
           market_id: leg.market.id,
           side: leg.isBid ? 'Buy' : 'Sell',
-          min_output_token: legs.length == 2 && i === 0 ? '0' : minimumOut.toString(),
+          min_output_token: legs.length == 2 && i === 0 ? '0' : minimumOut.toString()
         }
       })
       tokenInActions.push({

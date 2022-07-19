@@ -152,15 +152,21 @@ export function simulateSpinSwap ({
     // For bids (buy orders), match against asks (sell orders)
     // Bids are made in quote currency (USDC). To get quantity at each step, divide amount by price
     if (isBid) {
+      // Say that price of a SOL/USDC market is 100 and lot size is 1. If the user places a bid with 102 USDC,
+      // then only 100 USDC (1 lot) should be consumed.
       const orderQuantity = decimalPlaces.mul(remainingAmount).div(price)
+        // multiple of step size
+        .div(market.limits.step_size!).round().mul(market.limits.step_size!)
       if (quantity.gte(orderQuantity)) {
         // order is filled, stop traversal
-        remainingAmount = new Big(0)
+        const consumedQuoteAmount = orderQuantity.mul(price).div(decimalPlaces)
+        remainingAmount = remainingAmount.sub(consumedQuoteAmount) // include dust
         outputAmount = outputAmount.add(orderQuantity)
         break
       } else {
         // use all available quanitity at this step, then move to the next
-        remainingAmount = remainingAmount.sub(quantity.mul(price).div(decimalPlaces))
+        const consumedQuoteAmount = quantity.mul(price).div(decimalPlaces)
+        remainingAmount = remainingAmount.sub(consumedQuoteAmount)
         outputAmount = outputAmount.add(quantity)
       }
     } else {
@@ -176,11 +182,12 @@ export function simulateSpinSwap ({
       }
     }
   }
+
   // subtract taker fee
+  // In Spin- output minus fees need not be a multiple of lot size
   const { taker_fee: takerFee, decimals: feeDecimals } = market.fees
   const feeDecimalPlaces = new Big(10).pow(feeDecimals)
   outputAmount = outputAmount.mul(feeDecimalPlaces.sub(takerFee)).div(feeDecimalPlaces).round()
-  // round down to remove decimal places
   return { output: outputAmount, remainingAmount, price: price! }
 }
 

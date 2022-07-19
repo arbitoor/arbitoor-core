@@ -173,10 +173,10 @@ NEAR_ENV=mainnet near view spot.spin-fi.near get_markets
 
 ```js
 [
-  {
-    id: 1,
-    ticker: 'NEAR/USDC',
-    base: { id: 1, symbol: 'NEAR', decimal: 24, address: 'near.near' },
+    {
+    id: 2,
+    ticker: 'USN/USDC',
+    base: { id: 3, symbol: 'USN', decimal: 18, address: 'usn' },
     quote: {
       id: 2,
       symbol: 'USDC',
@@ -184,23 +184,23 @@ NEAR_ENV=mainnet near view spot.spin-fi.near get_markets
       address: 'a0b86991c6218b36c1d19d4a2e9eb0ce3606eb48.factory.bridge.near'
     },
     fees: {
-      maker_fee: '500',
-      taker_fee: '1000',
+      maker_fee: '200',
+      taker_fee: '400',
       decimals: 6,
       is_rebate: true
     },
     availability: { allow_place: true, allow_cancel: true },
     limits: {
-      tick_size: '10000',
-      step_size: '10000000000000000000000',
-      min_base_quantity: '100000000000000000000000',
-      max_base_quantity: '20000000000000000000000000',
+      tick_size: '1000',
+      step_size: '1000000000000000',
+      min_base_quantity: '500000000000000000',
+      max_base_quantity: '501000000000000000000',
       min_quote_quantity: '500000',
-      max_quote_quantity: '100000000',
+      max_quote_quantity: '501000000',
       max_bid_count: 20,
       max_ask_count: 20
     }
-  }
+  },
 ]
 ```
 
