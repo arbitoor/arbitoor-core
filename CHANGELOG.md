@@ -87,3 +87,28 @@
 ### Features
 
 - `referrer` address can be passed as a parameter.
+
+## 1.3.0
+
+### Features
+
+- Support Tonic markets for NEP-141 tokens. Native near markets are unsupported for now.
+
+## 1.3.1
+
+### Fixes
+
+- Correct slippage field in Tonic
+
+## 1.3.2
+
+### Fixes
+
+- Earlier, Spin's calculated estimate did not match actual received amount. Round implemented for bid orders using lot size.
+
+## 1.3.3
+
+### Fixes
+
+- Add undefined type checks for Tonic and Spin.
+- Stop price parameter for spin swaps to account for slippage instead of price impact.
