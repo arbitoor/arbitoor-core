@@ -238,12 +238,12 @@ export function getSpinOutput ({
       isBid,
       amount
     })
-    if (!bestResult || (swapResult && swapResult.output.gt(bestResult.output))) {
+    if (swapResult && (!bestResult || swapResult.output.gt(bestResult.output))) {
       const marketPrice = isBid
         ? orderbook.ask_orders![0]!.price
         : orderbook.bid_orders![0]!.price
 
-      const output = swapResult!.output
+      const output = swapResult.output
 
       // Skip this market if output amount is out of bounds
       if (
@@ -254,12 +254,12 @@ export function getSpinOutput ({
       }
 
       bestResult = {
-        ...swapResult!,
+        ...swapResult,
         dex: SPIN,
         market,
         inputToken,
         outputToken,
-        inputAmount: amount.sub(swapResult!.remainingAmount),
+        inputAmount: amount.sub(swapResult.remainingAmount),
         marketPrice: new Big(marketPrice),
         isBid
       }

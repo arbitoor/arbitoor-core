@@ -183,12 +183,12 @@ export function getTonicOutput ({
       isBid,
       amount
     })
-    if (!bestResult || (swapResult && swapResult.output.gt(bestResult.output))) {
+    if (swapResult && (!bestResult || swapResult.output.gt(bestResult.output))) {
       bestResult = {
-        ...swapResult!,
+        ...swapResult,
         dex: TONIC,
         legs: [{ market, isBid }],
-        inputAmount: amount.sub(swapResult!.remainingAmount)
+        inputAmount: amount.sub(swapResult.remainingAmount)
       }
     }
   }
