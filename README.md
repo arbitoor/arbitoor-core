@@ -244,6 +244,45 @@ NEAR_ENV=mainnet near view spot.spin-fi.near get_orderbook '{ "market_id": 1, "l
 }
 ```
 
+## Issues
+1. Tried to swap 100 Aurora for USDC.
+
+```js
+  {
+    id: 3,
+    ticker: 'AURORA/USDC',
+    base: {
+      id: 4,
+      symbol: 'AURORA',
+      decimal: 18,
+      address: 'aaaaaa20d9e0e2461697782ef11675f668207961.factory.bridge.near'
+    },
+    quote: {
+      id: 2,
+      symbol: 'USDC',
+      decimal: 6,
+      address: 'a0b86991c6218b36c1d19d4a2e9eb0ce3606eb48.factory.bridge.near'
+    },
+    fees: {
+      maker_fee: '500',
+      taker_fee: '1000',
+      decimals: 6,
+      is_rebate: true
+    },
+    availability: { allow_place: true, allow_cancel: true },
+    limits: {
+      tick_size: '10000',
+      step_size: '10000000000000000',
+      min_base_quantity: '100000000000000000',
+      max_base_quantity: '300000000000000000000',
+      min_quote_quantity: '500000',
+      max_quote_quantity: '500000000',
+      max_bid_count: 20,
+      max_ask_count: 20
+    }
+  },
+```
+
 # Tonic integration
 
 - Fetch markets: `J5mggeEGCyXVUibvYTe9ydVBrELECRUu23VRk2TwC2is` is USN/USDC market. USN is base, USDC quote.

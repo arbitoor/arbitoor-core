@@ -21,7 +21,7 @@ import {
   registerToken
 } from './ref-finance'
 import { AccountProvider } from './AccountProvider'
-import { getSpinOutput, SpinRouteInfo } from './spin/spin-api'
+import { getPriceForExactOutputSwap, getSpinOutput, SpinRouteInfo } from './spin/spin-api'
 import { getTonicOutput, TonicRouteInfo } from './tonic'
 import { index } from 'mathjs'
 
@@ -69,20 +69,19 @@ export class Arbitoor {
 
     if (routeInfo.dex === SPIN) {
       // inputToken-outputToken are redundant, use isBid to read from market
-      const { market, inputAmount, inputToken, outputToken, isBid, marketPrice } = routeInfo as SpinRouteInfo
+      const { market, orderbook, inputAmount, output, inputToken, outputToken, isBid } = routeInfo as SpinRouteInfo
 
       const registerTx = registerToken(this.accountProvider, outputToken, this.user)
       if (registerTx) {
         transactions.push(registerTx)
       }
 
-      const tickSize = new Big(market.limits.tick_size!)
-
-      // Limit price should be a multiple of tick size
-      const limitPrice = isBid
-        ? tickSize.mul(marketPrice.mul(100 + slippageTolerance).div(100).div(tickSize).round())
-        : tickSize.mul(marketPrice.mul(100 - slippageTolerance).div(100).div(tickSize).round(undefined, RoundingMode.RoundUp))
-
+      const minimumOut = output.mul(100 - slippageTolerance).div(100)
+      const limitPrice = getPriceForExactOutputSwap(
+        orderbook,
+        minimumOut,
+        isBid
+      )
       tokenInActions.push({
         type: 'FunctionCall',
         params: {

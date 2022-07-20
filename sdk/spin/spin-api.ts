@@ -109,6 +109,7 @@ export interface OrderbookEstimate {
 export interface SpinRouteInfo extends OrderbookEstimate {
   dex: string;
   market: SpinMarket;
+  orderbook: SpinOrderbook;
   inputToken: string;
   outputToken: string;
   inputAmount: Big;
@@ -191,6 +192,12 @@ export function simulateSpinSwap ({
   return { output: outputAmount, remainingAmount, price: price! }
 }
 
+/**
+ * Find the swap path and output amount for a spin swap
+ *
+ * @param param0
+ * @returns
+ */
 export function getSpinOutput ({
   provider,
   inputToken,
@@ -257,6 +264,7 @@ export function getSpinOutput ({
         ...swapResult,
         dex: SPIN,
         market,
+        orderbook,
         inputToken,
         outputToken,
         inputAmount: amount.sub(swapResult.remainingAmount),
@@ -268,4 +276,48 @@ export function getSpinOutput ({
 
   // To construct transaction we need- market id, input token, amount, threshold price
   return bestResult
+}
+
+/**
+ * The new price of a slab after an exact output swap
+ */
+export function getPriceForExactOutputSwap (
+  orderbook: SpinOrderbook,
+  output: Big,
+  isBid: boolean
+) {
+  const ordersToTraverse = isBid ? orderbook.ask_orders : orderbook.bid_orders
+
+  if (!ordersToTraverse || ordersToTraverse.length === 0) {
+    throw Error('Cannot pass empty orderbook')
+  }
+
+  let price!: Big
+
+  // No input order quantity. Instead check if this order can fill remaining output
+  let remainingOutput = output
+  for (const order of ordersToTraverse) {
+    const quantity = new Big(order.quantity)
+    price = new Big(order.price)
+    if (isBid) {
+      const ouputQuoteAmount = quantity.mul(price)
+      if (ouputQuoteAmount.gte(remainingOutput)) {
+        remainingOutput = new Big(0)
+        break
+      } else {
+        remainingOutput.sub(ouputQuoteAmount)
+      }
+    } else {
+      // Ask: base for quote swap. Match with bids, i.e. quote for base orders.
+      // check if tick as enough lots to fill output
+      if (quantity.gte(remainingOutput)) {
+        remainingOutput = new Big(0)
+        break
+      } else {
+        remainingOutput = remainingOutput.sub(quantity)
+      }
+    }
+  }
+
+  return price
 }
