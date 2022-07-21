@@ -112,3 +112,9 @@
 
 - Add undefined type checks for Tonic and Spin.
 - Stop price parameter for spin swaps to account for slippage instead of price impact.
+
+## 1.3.4
+
+### Fixes
+
+- Add undefined type check for Tonic multi-market swap.

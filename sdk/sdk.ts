@@ -527,7 +527,7 @@ export class Arbitoor {
 
       routes.push({
         ...tonicOutput,
-        output: tonicOutput!.output.div(decimalPlaces)
+        output: tonicOutput.output.div(decimalPlaces)
       })
     }
 

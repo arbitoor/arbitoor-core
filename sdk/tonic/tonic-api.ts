@@ -223,7 +223,7 @@ export function getTonicOutput ({
               amount: inputSwap.output
             })
 
-            if (!bestResult || (outputSwap && outputSwap.output.gt(bestResult.output))) {
+            if (outputSwap && (!bestResult || outputSwap.output.gt(bestResult.output))) {
               bestResult = {
                 ...outputSwap!,
                 dex: TONIC,
