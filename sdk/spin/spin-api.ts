@@ -321,3 +321,6 @@ export function getPriceForExactOutputSwap (
 
   return price
 }
+export async function generateSpinTransactions({}) {
+
+}

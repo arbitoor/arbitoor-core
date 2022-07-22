@@ -30,23 +30,23 @@ test('best route', async t => {
 
   const slippageTolerance = 5
 
-  // Poll for pools and storage. If storage is set, then storage polling can be stopped.
-  await inMemoryProvider.ftFetchStorageBalance(outputToken, user)
-  await inMemoryProvider.fetchPools()
+// Poll for pools and storage. If storage is set, then storage polling can be stopped.
+await inMemoryProvider.ftFetchStorageBalance(outputToken, user)
+await inMemoryProvider.fetchPools()
 
   // just returns actions for one swap
-  const routes = await arbitoor.computeRoutes({
-    inputToken,
-    outputToken,
-    inputAmount
-  })
+const routes = await arbitoor.computeRoutes({
+  inputToken,
+  outputToken,
+  inputAmount
+})
 
   for (const route of routes) {
     console.log('dex', route.dex, 'output', route.output.toString())
-    const txs = await arbitoor.generateTransactions({
-      routeInfo: route,
-      slippageTolerance
-    })
+  const txs = await arbitoor.generateTransactions({
+    routeInfo: route,
+    slippageTolerance
+  })
     console.log('txs', JSON.stringify(txs, undefined, 4))
 
     const path = getRoutePath(route)
