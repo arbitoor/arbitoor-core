@@ -118,3 +118,9 @@
 ### Fixes
 
 - Add undefined type check for Tonic multi-market swap.
+
+## 1.3.5
+
+### Fixes
+
+- Move packages needed by the SDK from `devDependencies` to `dependencies`. This allows developers to integrate the SDK without separately installing underlying packages.
