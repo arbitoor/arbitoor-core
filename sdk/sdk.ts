@@ -23,7 +23,6 @@ import {
 import { AccountProvider } from './AccountProvider'
 import { getPriceForExactOutputSwap, getSpinOutput, SpinRouteInfo } from './spin/spin-api'
 import { getTonicOutput, TonicRouteInfo } from './tonic'
-import { index } from 'mathjs'
 
 // Input parameters to generate routes
 export interface RouteParameters {
@@ -491,26 +490,26 @@ export class Arbitoor {
           inputAmount: new Big(inputAmount)
         }
 
-    const routes: RouteInfo[] = [refRoute]
+    const routes: RouteInfo[] = [refRoute, jumboRoute]
 
-    // const spinOutput = getSpinOutput({
-    //   provider: this.accountProvider,
-    //   inputToken,
-    //   outputToken,
-    //   amount: new Big(inputAmount)
-    // })
+    const spinOutput = getSpinOutput({
+      provider: this.accountProvider,
+      inputToken,
+      outputToken,
+      amount: new Big(inputAmount)
+    })
 
-    // if (spinOutput) {
-    //   const outputDecimals = spinOutput.isBid ? spinOutput.market.base.decimal : spinOutput.market.quote.decimal
-    //   const decimalPlaces = new Big(10).pow(outputDecimals)
+    if (spinOutput) {
+      const outputDecimals = spinOutput.isBid ? spinOutput.market.base.decimal : spinOutput.market.quote.decimal
+      const decimalPlaces = new Big(10).pow(outputDecimals)
 
-    //   // Account for decimal places.
-    //   // TODO return in raw form from all algorithms. Forced to convert Spin results because Ref does it.
-    //   routes.push({
-    //     ...spinOutput,
-    //     output: spinOutput!.output.div(decimalPlaces)
-    //   })
-    // }
+      // Account for decimal places.
+      // TODO return in raw form from all algorithms. Forced to convert Spin results because Ref does it.
+      routes.push({
+        ...spinOutput,
+        output: spinOutput!.output.div(decimalPlaces)
+      })
+    }
 
     const tonicOutput = getTonicOutput({
       provider: this.accountProvider,
