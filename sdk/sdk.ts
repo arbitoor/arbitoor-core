@@ -24,6 +24,13 @@ import { AccountProvider } from './AccountProvider'
 import { getPriceForExactOutputSwap, getSpinOutput, SpinRouteInfo } from './spin/spin-api'
 import { getTonicOutput, TonicRouteInfo } from './tonic'
 
+export type Currency = {
+  type: 'near';
+} | {
+  type: 'ft';
+  account_id: string;
+}
+
 // Input parameters to generate routes
 export interface RouteParameters {
   inputToken: string,
@@ -406,14 +413,9 @@ export class Arbitoor {
     outputToken,
     inputAmount
   }: RouteParameters): Promise<RouteInfo[]> {
-    // Read from cache
-    const refPools = filterPoolsWithEitherToken(this.accountProvider.getRefPools(), inputToken, outputToken)
-    const jumboPools = filterPoolsWithEitherToken(this.accountProvider.getJumboPools(), inputToken, outputToken)
-
     // doesn't account for stable pool
     const refSwapView = await stableSmart(
       this.accountProvider,
-      refPools,
       inputToken,
       outputToken,
       inputAmount,
@@ -453,7 +455,7 @@ export class Arbitoor {
 
     const jumboSwapView = await stableSmart(
       this.accountProvider,
-      jumboPools,
+      // jumboPools,
       inputToken,
       outputToken,
       inputAmount,

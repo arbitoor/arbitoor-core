@@ -3,7 +3,7 @@
 ////////////////////////////////////////////////////////////////////////////
 import Big from 'big.js';
 import { checkIntegerSumOfAllocations } from './parallelSwapLogic'
-import { separateRoutes } from './ref-utils'
+import { separateRoutes, filterPoolsWithEitherToken } from './ref-utils'
 
 Big.RM = 0;
 Big.DP = 40;
@@ -1065,7 +1065,6 @@ function* combinations(arr, r) {
 
 export async function getSmartRouteSwapActions(
   accountProvider,
-  pools,
   inputToken,
   outputToken,
   totalInput,
@@ -1079,6 +1078,7 @@ export async function getSmartRouteSwapActions(
   }
   var totalInput = new Big(totalInput);
 
+  const pools = filterPoolsWithEitherToken(accountProvider.getRefPools(), inputToken, outputToken)
   let resDict = await getBestOptimalAllocationsAndOutputs(
     pools,
     inputToken,
@@ -2030,7 +2030,6 @@ function getGraphFromPoolList(poolList) {
 
 export async function stableSmart(
   accountProvider,
-  pools,
   inputToken,
   outputToken,
   totalInput,
@@ -2038,7 +2037,6 @@ export async function stableSmart(
 ) {
   let smartRouteActions = await getSmartRouteSwapActions(
     accountProvider,
-    pools,
     inputToken,
     outputToken,
     totalInput,
