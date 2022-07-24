@@ -2,6 +2,7 @@ import { TokenInfo } from '@tonic-foundation/token-list'
 import Big from 'big.js'
 import { SpinRouteInfo } from '../spin'
 import { TonicRouteInfo } from '../tonic'
+import { WNearRouteInfo } from '../wrapped-near'
 
 export interface ReservesMap {
   [index: string]: Big;
@@ -80,7 +81,7 @@ export interface RefRouteInfo {
 }
 
 // A route to reach token 1 to token 2
-export type RouteInfo = RefRouteInfo | SpinRouteInfo | TonicRouteInfo
+export type RouteInfo = RefRouteInfo | SpinRouteInfo | TonicRouteInfo | WNearRouteInfo
 
 export interface RefForkSwap {
   exchange: string,

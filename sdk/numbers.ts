@@ -16,7 +16,7 @@ export const percentLess = (percent: number, num: number | string) => {
   })
 }
 
-export const toNonDivisibleNumber = (
+export const toNonDivisibleNumber = ( // 1
   decimals: number,
   number: string
 ): string => {
@@ -191,4 +191,13 @@ export function getPoolAllocationPercents (pools: (Pool | StablePool)[]) {
   } else {
     return []
   }
+}
+
+export const round = (decimals: number, minAmountOut: string) => {
+  return Number.isInteger(Number(minAmountOut))
+    ? minAmountOut
+    : Math.ceil(
+      Math.round(Number(minAmountOut) * Math.pow(10, decimals)) /
+          Math.pow(10, decimals)
+    ).toString()
 }

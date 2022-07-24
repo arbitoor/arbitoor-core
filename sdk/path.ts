@@ -1,16 +1,48 @@
 import { Market as SpinMarket } from '@spinfi/core'
-import { SPIN, TONIC } from './constants'
+import { JUMBO, REF, SPIN, TONIC, WRAPPED_NEAR } from './constants'
 import { getPoolAllocationPercents } from './numbers'
-import { StablePool, EstimateSwapView, RouteInfo, RefRouteInfo, Pool, separateRoutes } from './ref-finance'
+import { StablePool, EstimateSwapView, RouteInfo, RefRouteInfo, Pool, separateRoutes, RefFork } from './ref-finance'
+import { Currency, FungibleToken, Near, WrappedNearToken } from './sdk'
 import { SpinRouteInfo } from './spin'
 import { TonicMarket, TonicRouteInfo } from './tonic'
+import { WNearRouteInfo } from './wrapped-near'
 
-export interface RouteLeg {
-  tokens: [string, string] | [string, string, string];
+export interface RefLeg {
+  dex: typeof REF | typeof JUMBO
+  tokens: [string, string] | [string, string, string],
   percentage: string;
-  pools: (StablePool | Pool | SpinMarket | TonicMarket)[];
-  dex: string;
+  pools: (StablePool | Pool)[];
 }
+
+export interface SpinLeg {
+  dex: typeof SPIN
+  tokens: [string, string],
+  percentage: '100';
+  pools: [SpinMarket];
+}
+
+export interface TonicLeg {
+  dex: typeof TONIC
+  tokens: [string, string] | [string, string, string],
+  percentage: '100';
+  pools: [TonicMarket] | [TonicMarket, TonicMarket];
+}
+
+export interface WrapNearLeg {
+  dex: typeof WRAPPED_NEAR
+  tokens: [Near, WrappedNearToken]
+  percentage: '100'
+}
+
+export interface UnwrapNearLeg {
+  dex: typeof WRAPPED_NEAR
+  tokens: [WrappedNearToken, Near]
+  percentage: '100'
+}
+
+// export interface
+
+export type RouteLeg = RefLeg | SpinLeg | TonicLeg | WrapNearLeg | UnwrapNearLeg
 
 /**
  * Returns a JS object representing a swap path. Each route can have one or more pools.
@@ -22,7 +54,32 @@ export interface RouteLeg {
  * @returns Dex name, tokens, percentage split and pools per route.
  */
 export function getRoutePath (routeInfo: RouteInfo): RouteLeg[] {
-  if (routeInfo.dex === SPIN) {
+  if (routeInfo.dex === WRAPPED_NEAR) {
+    const { wrap } = routeInfo as WNearRouteInfo
+    if (wrap) {
+      return [{
+        dex: WRAPPED_NEAR,
+        tokens: [{
+          type: 'near'
+        }, {
+          type: 'ft',
+          accountId: WRAPPED_NEAR
+        }],
+        percentage: '100'
+      }] as WrapNearLeg[]
+    } else {
+      return [{
+        dex: WRAPPED_NEAR,
+        tokens: [{
+          type: 'ft',
+          accountId: WRAPPED_NEAR
+        }, {
+          type: 'near'
+        }],
+        percentage: '100'
+      }] as UnwrapNearLeg[]
+    }
+  } else if (routeInfo.dex === SPIN) {
     const { inputToken, outputToken, market } = routeInfo as SpinRouteInfo
     return [{
       tokens: [inputToken, outputToken],
@@ -64,9 +121,9 @@ export function getRoutePath (routeInfo: RouteInfo): RouteLeg[] {
       tokens,
       percentage: '100',
       pools: (routeInfo as TonicRouteInfo).legs.map(leg => leg.market),
-      dex: SPIN
-    }]
-  } else {
+      dex: TONIC
+    }] as TonicLeg[]
+  } else if ([REF, JUMBO].includes(routeInfo.dex)) {
     const { view: swapsToDo, dex } = routeInfo as RefRouteInfo
 
     if (swapsToDo.length === 0) {
@@ -94,6 +151,8 @@ export function getRoutePath (routeInfo: RouteInfo): RouteLeg[] {
         pools: route.map(routePool => routePool.pool),
         dex
       }
-    })
+    }) as RefLeg[]
+  } else {
+    throw Error('Unimplemented DEX')
   }
 }

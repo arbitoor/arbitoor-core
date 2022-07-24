@@ -3,6 +3,7 @@ export const REF = 'v2.ref-finance.near'
 export const JUMBO = 'v1.jumbo_exchange.near'
 export const SPIN = 'spot.spin-fi.near'
 export const TONIC = 'v1.orderbook.near'
+export const WRAPPED_NEAR = 'wrap.near'
 export const MEMO = 'arbitoor'
 export const REFERRAL_ID = 'arbitoor.near'
 

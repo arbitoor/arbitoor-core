@@ -1,40 +1,131 @@
-import { TokenInfo, TokenListProvider } from '@tonic-foundation/token-list'
-import test from 'ava'
+import { test } from './helper'
 import Big from 'big.js'
-import { MainnetRpc } from 'near-workspaces'
-import { Arbitoor, getRoutePath } from '../../sdk'
-import { InMemoryProvider } from '../../sdk/AccountProvider'
+import { getRoutePath, Currency } from '../../sdk'
+import { WRAPPED_NEAR } from '../../sdk/constants'
 
-test('best route', async t => {
-  const user = 'test.near'
+test('wrap NEAR', async t => {
+  const { inMemoryProvider, arbitoor } = t.context
 
-  const tokens = await new TokenListProvider().resolve()
-  const tokenList = tokens.filterByNearEnv('mainnet').getList()
-  const tokenMap = tokenList.reduce((map, item) => {
-    map.set(item.address, item)
-    return map
-  }, new Map<string, TokenInfo>())
+  const inputToken: Currency = {
+    type: 'near'
+  }
+  const outputToken: Currency = {
+    type: 'ft',
+    accountId: 'wrap.near'
+  }
 
-  const inMemoryProvider = new InMemoryProvider(MainnetRpc, tokenMap)
+  const inputAmount = new Big(10).pow(24).mul(100).toString()
+  const slippageTolerance = 5
+  // Poll for pools and storage. If storage is set, then storage polling can be stopped.
+  await inMemoryProvider.ftFetchStorageBalance(outputToken.accountId, arbitoor.user)
 
-  const arbitoor = new Arbitoor({
-    accountProvider: inMemoryProvider,
-    user
+  const routes = await arbitoor.computeRoutes({
+    inputToken,
+    outputToken,
+    inputAmount
   })
 
-  // USDT->USN is being routed as USDT->USDC->USN on Ref, giving worse rate
-  const inputToken = 'a0b86991c6218b36c1d19d4a2e9eb0ce3606eb48.factory.bridge.near'
-  // 'aaaaaa20d9e0e2461697782ef11675f668207961.factory.bridge.near'
-  const outputToken = 'meta-pool.near'
-  const inputAmount = new Big(10).pow(tokenMap.get(inputToken)!.decimals).mul(150).toString()
+  t.is(routes.length, 1)
+
+  const wrapRoute = routes[0]!
+  t.deepEqual(wrapRoute, {
+    dex: WRAPPED_NEAR,
+    wrap: true,
+    output: new Big(inputAmount)
+  })
+
+  const path = getRoutePath(wrapRoute)
+  t.deepEqual(path, [{
+    dex: WRAPPED_NEAR,
+    tokens: [{
+      type: 'near'
+    }, {
+      type: 'ft',
+      accountId: WRAPPED_NEAR
+    }],
+    percentage: '100'
+  }])
+
+  const txs = await arbitoor.generateTransactions({
+    routeInfo: wrapRoute,
+    slippageTolerance
+  })
+
+  t.is(txs.length, 2)
+})
+
+test('unwrap NEAR', async t => {
+  const { arbitoor } = t.context
+
+  const inputToken: Currency = {
+    type: 'ft',
+    accountId: 'wrap.near'
+  }
+  const outputToken: Currency = {
+    type: 'near'
+  }
+
+  const inputAmount = new Big(10).pow(24).mul(100).toString()
+  const slippageTolerance = 5
+
+  // Not possible to fetch storage balance of native NEAR, so skip this step
+  // await inMemoryProvider.ftFetchStorageBalance(outputToken.accountId, arbitoor.user)
+
+  const routes = await arbitoor.computeRoutes({
+    inputToken,
+    outputToken,
+    inputAmount
+  })
+
+  t.is(routes.length, 1)
+
+  const unwrapRoute = routes[0]!
+  t.deepEqual(unwrapRoute, {
+    dex: WRAPPED_NEAR,
+    wrap: false,
+    output: new Big(inputAmount)
+  })
+
+  const path = getRoutePath(unwrapRoute)
+  t.deepEqual(path, [{
+    dex: WRAPPED_NEAR,
+    tokens: [{
+      type: 'ft',
+      accountId: WRAPPED_NEAR
+    }, {
+      type: 'near'
+    }],
+    percentage: '100'
+  }])
+
+  const txs = await arbitoor.generateTransactions({
+    routeInfo: unwrapRoute,
+    slippageTolerance
+  })
+
+  t.is(txs.length, 1)
+})
+
+test('ft to ft trade', async t => {
+  const { inMemoryProvider, arbitoor } = t.context
+
+  const inputToken: Currency = {
+    type: 'ft',
+    accountId: 'a0b86991c6218b36c1d19d4a2e9eb0ce3606eb48.factory.bridge.near'
+  }
+  const outputToken: Currency = {
+    type: 'ft',
+    accountId: 'meta-pool.near'
+  }
+
+  const inputAmount = new Big(10).pow(
+    (await inMemoryProvider.getTokenMetadata(inputToken.accountId)
+  )!.decimals).mul(10).toString()
 
   const slippageTolerance = 5
 
-  // Poll for pools and storage. If storage is set, then storage polling can be stopped.
-  await inMemoryProvider.ftFetchStorageBalance(outputToken, user)
-  await inMemoryProvider.fetchPools()
+  await inMemoryProvider.ftFetchStorageBalance(outputToken.accountId, arbitoor.user)
 
-  // just returns actions for one swap
   const routes = await arbitoor.computeRoutes({
     inputToken,
     outputToken,

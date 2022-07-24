@@ -1,32 +1,10 @@
-import { Provider, CodeResult } from 'near-workspaces'
-import { SPIN, TONIC } from '../constants'
-import { MarketViewV1 } from '@tonic-foundation/tonic/lib/types/v1'
-import Big from 'big.js'
+import Big, { RoundingMode } from 'big.js'
+import { FunctionCallAction, Transaction } from '@near-wallet-selector/core'
+import { MEMO, SPIN, TONIC } from '../constants'
 import { AccountProvider } from '../AccountProvider'
-import { OrderbookEstimate } from '../spin'
-
-// Fields returned by RPC but missing in Tonic SDK
-export interface TonicMarket extends MarketViewV1 {
-  state: 'Active' | 'Uninitialized',
-}
-
-export async function getTonicMarkets (
-  provider: Provider,
-  fromIndex: number = 0,
-  limit: number = 100
-): Promise<TonicMarket[]> {
-  const res = await provider.query<CodeResult>({
-    request_type: 'call_function',
-    account_id: TONIC,
-    method_name: 'list_markets',
-    args_base64: Buffer.from(JSON.stringify({
-      from_index: fromIndex,
-      limit
-    })).toString('base64'),
-    finality: 'optimistic'
-  })
-  return JSON.parse(Buffer.from(res.result).toString())
-}
+import { getPriceForExactOutputSwap, OrderbookEstimate, SpinRouteInfo } from '../spin'
+import { TonicMarket } from './api'
+import { registerToken } from '../ref-finance'
 
 export interface FungibleTokenType {
   type: 'ft';
@@ -238,4 +216,101 @@ export function getTonicOutput ({
   }
 
   return bestResult
+}
+
+/**
+ * Get transactions to swap on Tonic
+ * @param param0
+ * @returns
+ */
+export function getTonicTransactions ({
+  accountProvider,
+  user,
+  routeInfo,
+  slippageTolerance
+} : {
+  accountProvider: AccountProvider,
+  user: string,
+  routeInfo: TonicRouteInfo,
+  slippageTolerance: number
+}) {
+  const transactions = new Array<Transaction>()
+
+  const { inputAmount, legs, output } = routeInfo as TonicRouteInfo
+  const outputMarket = legs.at(-1)!
+
+  const inputToken = (legs[0].isBid
+    ? legs[0].market.quote_token.token_type
+    : legs[0].market.base_token.token_type) as {
+          type: 'ft';
+          account_id: string;
+        }
+
+  const outputToken = (outputMarket.isBid
+    ? outputMarket.market.base_token.token_type
+    : outputMarket.market.quote_token.token_type) as {
+          type: 'ft';
+          account_id: string;
+        }
+
+  const outputAmountMachineFormat = new Big(10).pow(
+    outputMarket.isBid
+      ? outputMarket.market.base_token.decimals
+      : outputMarket.market.quote_token.decimals
+  ).mul(output)
+
+  const registerTx = registerToken(accountProvider, outputToken.account_id, user)
+  if (registerTx) {
+    transactions.push(registerTx)
+  }
+
+  const tickSize = new Big(outputMarket.market.quote_token.lot_size)
+  let limitPrice: Big
+  if (outputMarket.isBid) {
+    const marketPrice = new Big(outputMarket.market.orderbook.asks[0]!.limit_price)
+    limitPrice = tickSize.mul(marketPrice.mul(100 + slippageTolerance).div(100).div(tickSize).round())
+  } else {
+    const marketPrice = new Big(outputMarket.market.orderbook.bids[0]!.limit_price)
+    tickSize.mul(marketPrice.mul(100 - slippageTolerance).div(100).div(tickSize).round(undefined, RoundingMode.RoundUp))
+  }
+
+  const outputLotSize = outputMarket.isBid
+    ? outputMarket.market.base_token.lot_size
+    : outputMarket.market.quote_token.lot_size
+
+  const minimumOut = outputAmountMachineFormat.mul(100 - slippageTolerance).div(100)
+    .div(outputLotSize).round().mul(outputLotSize) // rounding
+
+  const swapParams = legs.map((leg, i) => {
+    return {
+      type: 'Swap',
+      market_id: leg.market.id,
+      side: leg.isBid ? 'Buy' : 'Sell',
+      min_output_token: legs.length == 2 && i === 0 ? '0' : minimumOut.toString()
+    }
+  })
+
+  transactions.push({
+    receiverId: inputToken.account_id,
+    signerId: user,
+    actions: [{
+      type: 'FunctionCall',
+      params: {
+        methodName: 'ft_transfer_call',
+        args: {
+          receiver_id: TONIC,
+          amount: inputAmount.toString(),
+          msg: JSON.stringify({
+            action: 'Swap',
+            params: swapParams
+          }),
+          memo: MEMO
+        },
+        gas: '180000000000000',
+        deposit: '1'
+      }
+    }]
+  })
+
+  return transactions
 }

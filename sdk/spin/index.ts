@@ -1,1 +1,2 @@
-export * from './spin-api'
+export * from './spin'
+export * from './api'

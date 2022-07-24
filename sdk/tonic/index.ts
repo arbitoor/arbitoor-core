@@ -1,1 +1,2 @@
-export * from './tonic-api'
+export * from './tonic'
+export * from './api'

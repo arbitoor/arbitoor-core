@@ -319,6 +319,21 @@ NEAR_ENV=mainnet near call a0b86991c6218b36c1d19d4a2e9eb0ce3606eb48.factory.brid
 
 # Wrapped NEAR
 
+## Cases
+
+| Input | Output | DEX       | How to handle                                                                                                                                                                                                                                                                                                  |
+|-------|--------|-----------|----------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------|
+| NEAR  | wNEAR  | wrap.near | Return single route to wrap                                                                                                                                                                                                                                                                                    |
+| wNEAR | NEAR   | wrap.near | Return single route to unwrap                                                                                                                                                                                                                                                                                  |
+| NEAR  | ft     | REF       | Prepend a wrap action. Atomic operation.                                                                                                                                                                                                                                                                       |
+| ft    | NEAR   | REF       | Append an unwrap action. Since exact output amount is not known, use the minimum out calculated by slippage. Will need a smart contract to unwrap exact amount.                                                                                                                                                |
+| NEAR  | ft     | Spin      | There's a `swap_near` call specifically for NEAR input/output on Spin's contract.  ``` Arguments: {   "swap": {     "market_id": 1,     "price": "3920000"   } } ```                                                                                                                                           |
+| ft    | NEAR   | Spin      | Call structure is similar to ft-ft swaps.   ```json {   "receiver_id": "spot.spin-fi.near",   "amount": "10000000",   "msg": "{\"market_id\":1,\"price\":\"4810000\"}" } ```                                                                                                                                   |
+| NEAR  | ft     | Tonic     | There's a `swap_near` call specifically for NEAR input/output on Tonic's contract.  ```json {   "swaps": [     {       "type": "Swap",       "market_id": "2UmzUXYpaZg4vXfFVmD7r8mYUYkKEF19xpjLw7ygDUwp",       "side": "Sell",       "min_output_token": "3938058"     }   ] }  ```                           |
+| ft    | NEAR   | Tonic     | Same format as ft-ft swaps  ```json {   "receiver_id": "v1.orderbook.near",   "amount": "10000000",   "msg": "{\"action\":\"Swap\",\"params\":[{\"type\":\"Swap\",\"market_id\":\"2UmzUXYpaZg4vXfFVmD7r8mYUYkKEF19xpjLw7ygDUwp\",\"side\":\"Buy\",\"min_output_token\":\"2052739726027397000000000\"}]}" } ``` |
+
+## Transaction formats
+
 1. Wrap
 
 ```sh
